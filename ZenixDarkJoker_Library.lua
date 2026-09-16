@@ -1094,8 +1094,10 @@ function CreateTab(TabName)
 	icon.AnchorPoint = Vector2.new(0, 0.5)
 	icon.BackgroundTransparency = 1
 	icon.Image = "rbxthumb://type=Asset&id=76809797628298&w=420&h=420"
+	icon.ScaleType = Enum.ScaleType.Crop
 	icon.ZIndex = 13
 	icon.Parent = TabBtn
+	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
 
 	Create("TextLabel", {
 		Parent = TabBtn,
@@ -1146,6 +1148,41 @@ function CreateTab(TabName)
 	table.insert(TabButtons, TabBtn)
 
 	local suppressActivate = false
+	local shaking = {}
+
+	local function stopShake(btn)
+		shaking[btn] = false
+		Tween(btn, { Rotation = 0 }, 0.12)
+	end
+
+	local function startShake(btn)
+		if shaking[btn] then
+			return
+		end
+		shaking[btn] = true
+		task.spawn(function()
+			local dir = 1
+			while shaking[btn] and btn.Parent do
+				Tween(btn, { Rotation = 3.2 * dir }, 0.08)
+				dir = -dir
+				task.wait(0.08)
+			end
+			if btn.Parent then
+				Tween(btn, { Rotation = 0 }, 0.12)
+			end
+		end)
+	end
+
+	local function reorderTabs(fromIndex, toIndex)
+		if fromIndex == toIndex or fromIndex < 1 or toIndex < 1 or toIndex > #TabButtons then
+			return
+		end
+		local btn = table.remove(TabButtons, fromIndex)
+		local page = table.remove(TabContainers, fromIndex)
+		table.insert(TabButtons, toIndex, btn)
+		table.insert(TabContainers, toIndex, page)
+		applyTabOrders()
+	end
 
 	local function indexOfTab(btn)
 		for i, b in ipairs(TabButtons) do
@@ -1156,24 +1193,17 @@ function CreateTab(TabName)
 		return 1
 	end
 
-	local function tabIndexUnderCursor()
-		local mouse = UserInputService:GetMouseLocation()
+	local function targetIndexFromY(y)
+		local best, bestDist = 1, math.huge
 		for i, b in ipairs(TabButtons) do
-			local p, s = b.AbsolutePosition, b.AbsoluteSize
-			if mouse.X >= p.X and mouse.X <= p.X + s.X and mouse.Y >= p.Y and mouse.Y <= p.Y + s.Y then
-				return i
+			local mid = b.AbsolutePosition.Y + (b.AbsoluteSize.Y * 0.5)
+			local dist = math.abs(y - mid)
+			if dist < bestDist then
+				bestDist = dist
+				best = i
 			end
 		end
-		return nil
-	end
-
-	local function swapTabs(fromIndex, toIndex)
-		if not fromIndex or not toIndex or fromIndex == toIndex then
-			return
-		end
-		TabButtons[fromIndex], TabButtons[toIndex] = TabButtons[toIndex], TabButtons[fromIndex]
-		TabContainers[fromIndex], TabContainers[toIndex] = TabContainers[toIndex], TabContainers[fromIndex]
-		applyTabOrders()
+		return best
 	end
 
 	do
@@ -1189,8 +1219,19 @@ function CreateTab(TabName)
 		end)
 		UserInputService.InputChanged:Connect(function(input)
 			if holding and dragOrigin and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				if (input.Position - dragOrigin).Magnitude > 10 then
-					draggingTab = true
+				if (input.Position - dragOrigin).Magnitude > 8 then
+					if not draggingTab then
+						draggingTab = true
+						startShake(TabBtn)
+					end
+					local hover = targetIndexFromY(UserInputService:GetMouseLocation().Y)
+					for i, b in ipairs(TabButtons) do
+						if b ~= TabBtn and i == hover then
+							startShake(b)
+						elseif b ~= TabBtn then
+							stopShake(b)
+						end
+					end
 				end
 			end
 		end)
@@ -1198,8 +1239,11 @@ function CreateTab(TabName)
 			if holding and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 				if draggingTab then
 					suppressActivate = true
-					swapTabs(indexOfTab(TabBtn), tabIndexUnderCursor())
-					task.delay(0.05, function()
+					reorderTabs(indexOfTab(TabBtn), targetIndexFromY(UserInputService:GetMouseLocation().Y))
+					for _, b in ipairs(TabButtons) do
+						stopShake(b)
+					end
+					task.defer(function()
 						suppressActivate = false
 					end)
 				end
