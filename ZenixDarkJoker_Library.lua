@@ -128,15 +128,21 @@ local function Create(Class, ...)
 	return new
 end
 
-local function MakeDrag(Instance)
+local WindowDraggingBlocked = false
+
+local function MakeDrag(handle, target)
+	target = target or handle
 	local dragging = false
 	local dragInput, dragStart, startPos
 
-	Instance.InputBegan:Connect(function(input)
+	handle.InputBegan:Connect(function(input)
+		if WindowDraggingBlocked then
+			return
+		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			dragStart = input.Position
-			startPos = Instance.Position
+			startPos = target.Position
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -145,16 +151,20 @@ local function MakeDrag(Instance)
 		end
 	end)
 
-	Instance.InputChanged:Connect(function(input)
+	handle.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			dragInput = input
 		end
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
+		if WindowDraggingBlocked then
+			dragging = false
+			return
+		end
 		if input == dragInput and dragging then
 			local delta = input.Position - dragStart
-			Instance.Position = UDim2.new(
+			target.Position = UDim2.new(
 				startPos.X.Scale,
 				startPos.X.Offset + (delta.X / UIScale),
 				startPos.Y.Scale,
@@ -162,7 +172,7 @@ local function MakeDrag(Instance)
 			)
 		end
 	end)
-	return Instance
+	return handle
 end
 
 local function StyleInteractive(frame)
@@ -603,7 +613,6 @@ local StrokeGradient = Create("UIGradient", Stroke, {
 table.insert(activeGradients, StrokeGradient)
 
 redzlib.Elements["Gradient"](MainHubFrame, { Rotation = 45 })
-MakeDrag(MainHubFrame)
 redzlib.Elements["Corner"](MainHubFrame)
 
 local ToggleButton = Instance.new("ImageButton", ScreenGuiHub)
@@ -708,6 +717,8 @@ local TopBar = Create("Frame", Components, {
 	Name = "Top Bar",
 	ZIndex = 11
 })
+
+MakeDrag(TopBar, MainHubFrame)
 
 local Title = Create("TextLabel", TopBar, {
 	Position = UDim2.new(0, 30, 0.5),
@@ -1069,6 +1080,149 @@ MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 
 local TabContainers = {}
 local TabButtons = {}
+local TabDrag = {
+	holding = false,
+	dragging = false,
+	source = nil,
+	origin = nil,
+	suppress = {}
+}
+local tabShaking = {}
+
+local function stopTabShake(btn)
+	if not btn then
+		return
+	end
+	tabShaking[btn] = false
+	if btn.Parent then
+		Tween(btn, { Rotation = 0 }, 0.12)
+	end
+end
+
+local function startTabShake(btn)
+	if not btn or tabShaking[btn] then
+		return
+	end
+	tabShaking[btn] = true
+	task.spawn(function()
+		local dir = 1
+		while tabShaking[btn] and btn.Parent do
+			Tween(btn, { Rotation = 4.2 * dir }, 0.07)
+			dir = -dir
+			task.wait(0.07)
+		end
+		if btn.Parent then
+			Tween(btn, { Rotation = 0 }, 0.12)
+		end
+	end)
+end
+
+local function indexOfTab(btn)
+	for i, b in ipairs(TabButtons) do
+		if b == btn then
+			return i
+		end
+	end
+end
+
+local function reorderTabs(fromIndex, toIndex)
+	if not fromIndex or not toIndex or fromIndex == toIndex then
+		return
+	end
+	if fromIndex < 1 or toIndex < 1 or toIndex > #TabButtons then
+		return
+	end
+	local btn = table.remove(TabButtons, fromIndex)
+	local page = table.remove(TabContainers, fromIndex)
+	table.insert(TabButtons, toIndex, btn)
+	table.insert(TabContainers, toIndex, page)
+	applyTabOrders()
+end
+
+local function targetIndexFromMouse()
+	local mouse = UserInputService:GetMouseLocation()
+	local best, bestDist = 1, math.huge
+	for i, b in ipairs(TabButtons) do
+		local mid = b.AbsolutePosition.Y + (b.AbsoluteSize.Y * 0.5)
+		local dist = math.abs(mouse.Y - mid)
+		if dist < bestDist then
+			bestDist = dist
+			best = i
+		end
+	end
+	return best
+end
+
+local function beginTabDrag(btn, input)
+	TabDrag.holding = true
+	TabDrag.dragging = false
+	TabDrag.source = btn
+	TabDrag.origin = input.Position
+	WindowDraggingBlocked = true
+end
+
+UserInputService.InputChanged:Connect(function(input)
+	if not TabDrag.holding or not TabDrag.source or not TabDrag.origin then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+	if (input.Position - TabDrag.origin).Magnitude < 8 then
+		return
+	end
+	if not TabDrag.dragging then
+		TabDrag.dragging = true
+		MainScroll.ScrollingEnabled = false
+		startTabShake(TabDrag.source)
+		Tween(TabDrag.source, { BackgroundTransparency = 0.18 }, 0.1)
+	end
+	local hover = targetIndexFromMouse()
+	local from = indexOfTab(TabDrag.source)
+	if hover and from and hover ~= from then
+		reorderTabs(from, hover)
+	end
+	for i, b in ipairs(TabButtons) do
+		if b ~= TabDrag.source and i == hover then
+			startTabShake(b)
+		elseif b ~= TabDrag.source then
+			stopTabShake(b)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if not TabDrag.holding then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+	local source = TabDrag.source
+	if TabDrag.dragging and source then
+		TabDrag.suppress[source] = true
+		local hover = targetIndexFromMouse()
+		local from = indexOfTab(source)
+		if hover and from then
+			reorderTabs(from, hover)
+		end
+		task.delay(0.08, function()
+			TabDrag.suppress[source] = false
+		end)
+	end
+	for _, b in ipairs(TabButtons) do
+		stopTabShake(b)
+	end
+	if source then
+		Tween(source, { BackgroundTransparency = 0, Rotation = 0 }, 0.12)
+	end
+	MainScroll.ScrollingEnabled = true
+	WindowDraggingBlocked = false
+	TabDrag.holding = false
+	TabDrag.dragging = false
+	TabDrag.source = nil
+	TabDrag.origin = nil
+end)
 
 local function SetTabActive(btn, on)
 	Tween(btn, { BackgroundColor3 = on and Color3.fromRGB(26, 26, 26) or ThemeColors.ButtonNormal }, 0.2)
@@ -1147,112 +1301,12 @@ function CreateTab(TabName)
 	table.insert(TabContainers, Page)
 	table.insert(TabButtons, TabBtn)
 
-	local suppressActivate = false
-	local shaking = {}
-
-	local function stopShake(btn)
-		shaking[btn] = false
-		Tween(btn, { Rotation = 0 }, 0.12)
-	end
-
-	local function startShake(btn)
-		if shaking[btn] then
-			return
+	TabBtn.Active = true
+	TabBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			beginTabDrag(TabBtn, input)
 		end
-		shaking[btn] = true
-		task.spawn(function()
-			local dir = 1
-			while shaking[btn] and btn.Parent do
-				Tween(btn, { Rotation = 3.2 * dir }, 0.08)
-				dir = -dir
-				task.wait(0.08)
-			end
-			if btn.Parent then
-				Tween(btn, { Rotation = 0 }, 0.12)
-			end
-		end)
-	end
-
-	local function reorderTabs(fromIndex, toIndex)
-		if fromIndex == toIndex or fromIndex < 1 or toIndex < 1 or toIndex > #TabButtons then
-			return
-		end
-		local btn = table.remove(TabButtons, fromIndex)
-		local page = table.remove(TabContainers, fromIndex)
-		table.insert(TabButtons, toIndex, btn)
-		table.insert(TabContainers, toIndex, page)
-		applyTabOrders()
-	end
-
-	local function indexOfTab(btn)
-		for i, b in ipairs(TabButtons) do
-			if b == btn then
-				return i
-			end
-		end
-		return 1
-	end
-
-	local function targetIndexFromY(y)
-		local best, bestDist = 1, math.huge
-		for i, b in ipairs(TabButtons) do
-			local mid = b.AbsolutePosition.Y + (b.AbsoluteSize.Y * 0.5)
-			local dist = math.abs(y - mid)
-			if dist < bestDist then
-				bestDist = dist
-				best = i
-			end
-		end
-		return best
-	end
-
-	do
-		local draggingTab = false
-		local holding = false
-		local dragOrigin
-		TabBtn.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				holding = true
-				dragOrigin = input.Position
-				draggingTab = false
-			end
-		end)
-		UserInputService.InputChanged:Connect(function(input)
-			if holding and dragOrigin and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				if (input.Position - dragOrigin).Magnitude > 8 then
-					if not draggingTab then
-						draggingTab = true
-						startShake(TabBtn)
-					end
-					local hover = targetIndexFromY(UserInputService:GetMouseLocation().Y)
-					for i, b in ipairs(TabButtons) do
-						if b ~= TabBtn and i == hover then
-							startShake(b)
-						elseif b ~= TabBtn then
-							stopShake(b)
-						end
-					end
-				end
-			end
-		end)
-		UserInputService.InputEnded:Connect(function(input)
-			if holding and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-				if draggingTab then
-					suppressActivate = true
-					reorderTabs(indexOfTab(TabBtn), targetIndexFromY(UserInputService:GetMouseLocation().Y))
-					for _, b in ipairs(TabButtons) do
-						stopShake(b)
-					end
-					task.defer(function()
-						suppressActivate = false
-					end)
-				end
-				holding = false
-				draggingTab = false
-				dragOrigin = nil
-			end
-		end)
-	end
+	end)
 
 	if #TabContainers == 1 then
 		Page.Parent = Containers
@@ -1261,7 +1315,7 @@ function CreateTab(TabName)
 	end
 
 	TabBtn.Activated:Connect(function()
-		if suppressActivate then
+		if TabDrag.suppress[TabBtn] or TabDrag.dragging then
 			return
 		end
 		for i, p in ipairs(TabContainers) do
