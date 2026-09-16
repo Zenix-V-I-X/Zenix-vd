@@ -315,9 +315,6 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		DescL
 	})
 
-	DescL.TextTransparency = 1
-	DescL.Visible = false
-
 	local Label = {}
 	function Label:SetTitle(t)
 		if type(t) == "string" and t:gsub(" ", ""):len() > 0 then
@@ -328,7 +325,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		if type(d) == "string" and d:gsub(" ", ""):len() > 0 then
 			DescL.Text = d
 			DescL.Visible = true
-			DescL.TextTransparency = 1
+			DescL.TextTransparency = 0
 			LabelHolder.Position = UDim2.new(0, 10, 0)
 			LabelHolder.AnchorPoint = Vector2.new(0, 0)
 		else
@@ -340,51 +337,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 	end
 	Label:SetTitle(Title)
 	Label:SetDesc(Description)
-	DescWatch = DescWatch or {}
-	DescWatch[Container] = DescWatch[Container] or {}
-	table.insert(DescWatch[Container], { frame = Frame, desc = DescL })
 	return Frame, Label
-end
-
-local DescWatch = {}
-local DescArmed = {}
-
-local function descInView(el, window)
-	if not el or not window then
-		return false
-	end
-	local wp, ws = window.AbsolutePosition, window.AbsoluteSize
-	local p, s = el.AbsolutePosition, el.AbsoluteSize
-	return (p.Y + s.Y) > (wp.Y + 6) and p.Y < (wp.Y + ws.Y - 6)
-end
-
-local function updatePageDescs(page)
-	for _, item in ipairs(DescWatch[page] or {}) do
-		if item.desc and item.desc.Text ~= "" then
-			local show = DescArmed[page] == true and descInView(item.frame, page)
-			item.desc.Visible = true
-			Tween(item.desc, { TextTransparency = show and 0 or 1 }, 0.32, Enum.EasingStyle.Quad)
-		end
-	end
-end
-
-local function hidePageDescs(page)
-	DescArmed[page] = false
-	for _, item in ipairs(DescWatch[page] or {}) do
-		if item.desc then
-			item.desc.TextTransparency = 1
-		end
-	end
-end
-
-local function armPageDescs(page)
-	hidePageDescs(page)
-	task.delay(1, function()
-		if page and page.Parent == Containers then
-			DescArmed[page] = true
-			updatePageDescs(page)
-		end
-	end)
 end
 
 local activeNotifications = {}
@@ -570,69 +523,99 @@ ParticleContainer.ZIndex = 2
 Instance.new("UICorner", ParticleContainer).CornerRadius = UDim.new(0, 8)
 ParticleContainer.Parent = MainHubFrame
 
-local particles = {}
+local liveParticles = {}
+local particleConfig = {
+	MaxParticles = 30,
+	SpawnRate = 0.1,
+	SizeMin = 6,
+	SizeMax = 10,
+	SpeedMin = 15,
+	SpeedMax = 25,
+	Lifetime = 6
+}
+local lastParticleSpawn = 0
 
-for i = 1, 46 do
-	local size = math.random(3, 8)
-	local startWhite = (i % 2 == 0)
-	local wrap = Instance.new("Frame")
-	wrap.Size = UDim2.new(0, size + 8, 0, size + 8)
-	wrap.BackgroundTransparency = 1
-	wrap.ZIndex = 2
-	wrap.Parent = ParticleContainer
+local function spawnThemeParticle()
+	if #liveParticles >= particleConfig.MaxParticles then
+		return
+	end
+	local area = ParticleContainer.AbsoluteSize
+	if area.X < 12 or area.Y < 12 then
+		return
+	end
+	local size = math.random(particleConfig.SizeMin, particleConfig.SizeMax)
+	local speed = math.random(particleConfig.SpeedMin, particleConfig.SpeedMax)
+	local useWhite = (#liveParticles % 2 == 0)
+	local color = useWhite and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
+	local x = math.random(10, math.max(11, math.floor(area.X - 10)))
+	local y = area.Y + 20
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.fromOffset(size, size)
+	frame.Position = UDim2.fromOffset(x, y)
+	frame.BackgroundColor3 = color
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.ZIndex = 2
+	frame.Parent = ParticleContainer
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(1, 0)
 
 	local glow = Instance.new("Frame")
-	glow.Size = UDim2.new(1, 0, 1, 0)
-	glow.BackgroundColor3 = startWhite and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
-	glow.BackgroundTransparency = 0.86
+	glow.Size = UDim2.new(1, 6, 1, 6)
+	glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	glow.AnchorPoint = Vector2.new(0.5, 0.5)
+	glow.BackgroundColor3 = color
+	glow.BackgroundTransparency = 1
 	glow.BorderSizePixel = 0
-	glow.ZIndex = 2
-	glow.Parent = wrap
+	glow.ZIndex = 1
+	glow.Parent = frame
 	Instance.new("UICorner", glow).CornerRadius = UDim.new(1, 0)
 
-	local dot = Instance.new("Frame")
-	dot.Size = UDim2.new(0, size, 0, size)
-	dot.Position = UDim2.new(0.5, 0, 0.5, 0)
-	dot.AnchorPoint = Vector2.new(0.5, 0.5)
-	dot.BackgroundColor3 = startWhite and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
-	dot.BackgroundTransparency = math.random(18, 50) / 100
-	dot.BorderSizePixel = 0
-	dot.ZIndex = 3
-	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-	dot.Parent = wrap
-
-	local pulse = TweenInfo.new(math.random(26, 46) / 10, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-	TweenService:Create(dot, pulse, {
-		BackgroundColor3 = startWhite and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = math.random(20, 70) / 100
+	Tween(frame, { BackgroundTransparency = 0.2 }, 0.8)
+	Tween(glow, { BackgroundTransparency = 0.7 }, 0.8)
+	TweenService:Create(frame, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		BackgroundColor3 = useWhite and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
 	}):Play()
-	TweenService:Create(glow, pulse, {
-		BackgroundColor3 = startWhite and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+	TweenService:Create(glow, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		BackgroundColor3 = useWhite and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
 	}):Play()
 
-	table.insert(particles, {
-		element = wrap,
-		xPos = math.random(0, 1000) / 1000,
-		yPos = math.random(0, 1000) / 1000,
-		speed = math.random(35, 70) / 1000,
-		freq = math.random(8, 18) / 10,
-		amp = math.random(6, 16) / 1000,
-		offset = math.random() * 10
+	table.insert(liveParticles, {
+		Frame = frame,
+		Glow = glow,
+		StartTime = tick(),
+		Speed = speed
 	})
 end
 
-RunService.RenderStepped:Connect(function(dt)
+RunService.Heartbeat:Connect(function()
 	if not MainHubFrame.Visible then
 		return
 	end
-	for _, p in ipairs(particles) do
-		p.yPos = p.yPos - (p.speed * dt * 0.55)
-		local sway = math.sin(tick() * p.freq + p.offset) * p.amp
-		p.element.Position = UDim2.new(p.xPos + sway, 0, p.yPos, 0)
-		if p.yPos <= -0.08 then
-			p.yPos = 1.08
-			p.xPos = math.random(0, 1000) / 1000
+	for i = #liveParticles, 1, -1 do
+		local p = liveParticles[i]
+		local age = tick() - p.StartTime
+		if age >= particleConfig.Lifetime or p.Frame.Position.Y.Offset < -20 then
+			Tween(p.Frame, { BackgroundTransparency = 1 }, 0.5)
+			Tween(p.Glow, { BackgroundTransparency = 1 }, 0.5)
+			task.delay(0.5, function()
+				if p.Frame then
+					p.Frame:Destroy()
+				end
+			end)
+			table.remove(liveParticles, i)
+		else
+			local pos = p.Frame.Position
+			p.Frame.Position = UDim2.fromOffset(pos.X.Offset, pos.Y.Offset - p.Speed * 0.016)
+			local life = age / particleConfig.Lifetime
+			if life > 0.8 then
+				p.Frame.BackgroundTransparency = math.clamp(0.2 + (life - 0.8) / 0.2 * 0.8, 0.2, 1)
+			end
 		end
+	end
+	if tick() - lastParticleSpawn >= particleConfig.SpawnRate then
+		lastParticleSpawn = tick()
+		spawnThemeParticle()
 	end
 end)
 
@@ -952,65 +935,6 @@ local MinimizeButton = Create("ImageButton", {
 })
 SetChildren(ButtonsFolder, { CloseButton, MinimizeButton })
 
-local SearchHolder = Create("Frame", TopBar, {
-	Name = "TabSearch",
-	Size = UDim2.new(0, 82, 0, 18),
-	Position = UDim2.new(1, -60, 0.5, 0),
-	AnchorPoint = Vector2.new(1, 0.5),
-	BackgroundColor3 = ThemeColors.ButtonNormal,
-	ZIndex = 14
-})
-Create("UICorner", SearchHolder, { CornerRadius = UDim.new(0, 6) })
-ApplyMetallicBorder(SearchHolder, 1.2)
-
-local SearchBox = Create("TextBox", SearchHolder, {
-	Size = UDim2.new(1, -16, 1, 0),
-	Position = UDim2.new(0, 5, 0, 0),
-	BackgroundTransparency = 1,
-	Text = "",
-	PlaceholderText = "بحث",
-	PlaceholderColor3 = ThemeColors.MidGray,
-	TextColor3 = ThemeColors.PureWhite,
-	TextSize = 10,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	ClearTextOnFocus = false,
-	Font = Enum.Font.GothamMedium,
-	ZIndex = 15
-})
-
-local SearchClear = Create("TextButton", SearchHolder, {
-	Size = UDim2.new(0, 14, 0, 14),
-	Position = UDim2.new(1, -2, 0.5, 0),
-	AnchorPoint = Vector2.new(1, 0.5),
-	BackgroundTransparency = 1,
-	Text = "×",
-	TextColor3 = ThemeColors.SoftWhite,
-	TextSize = 13,
-	AutoButtonColor = false,
-	ZIndex = 16
-})
-
-local function FilterTabs(query)
-	query = tostring(query or "")
-	query = query:gsub("^%s+", ""):gsub("%s+$", "")
-	for _, btn in ipairs(TabButtons or {}) do
-		local name = tostring(btn:GetAttribute("TabName") or "")
-		if query == "" then
-			btn.Visible = true
-		else
-			btn.Visible = string.find(string.lower(name), string.lower(query), 1, true) ~= nil
-		end
-	end
-end
-
-SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-	FilterTabs(SearchBox.Text)
-end)
-SearchClear.Activated:Connect(function()
-	SearchBox.Text = ""
-	FilterTabs("")
-end)
-
 local function applyTabOrders()
 	for i, btn in ipairs(TabButtons or {}) do
 		btn.LayoutOrder = i
@@ -1046,9 +970,6 @@ local function SetExtraChrome(vis)
 	end
 	if TabResetBtn then
 		TabResetBtn.Visible = vis and currentTabSize > DEFAULT_TAB_SIZE + 4
-	end
-	if SearchHolder then
-		SearchHolder.Visible = vis
 	end
 end
 
@@ -1382,15 +1303,10 @@ function CreateTab(TabName)
 		end)
 	end
 
-	Page:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-		updatePageDescs(Page)
-	end)
-
 	if #TabContainers == 1 then
 		Page.Parent = Containers
 		SetTabActive(TabBtn, true)
 		refreshEmpty()
-		armPageDescs(Page)
 	end
 
 	TabBtn.Activated:Connect(function()
@@ -1398,14 +1314,12 @@ function CreateTab(TabName)
 			return
 		end
 		for i, p in ipairs(TabContainers) do
-			hidePageDescs(p)
 			p.Parent = nil
 			SetTabActive(TabButtons[i], false)
 		end
 		Page.Parent = Containers
 		SetTabActive(TabBtn, true)
 		refreshEmpty()
-		armPageDescs(Page)
 	end)
 
 	local Tab = {}
