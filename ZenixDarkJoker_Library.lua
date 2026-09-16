@@ -1085,6 +1085,7 @@ local TabDrag = {
 	dragging = false,
 	source = nil,
 	origin = nil,
+	hover = nil,
 	suppress = {}
 }
 local tabShaking = {}
@@ -1107,9 +1108,9 @@ local function startTabShake(btn)
 	task.spawn(function()
 		local dir = 1
 		while tabShaking[btn] and btn.Parent do
-			Tween(btn, { Rotation = 4.2 * dir }, 0.07)
+			Tween(btn, { Rotation = 5 * dir }, 0.08)
 			dir = -dir
-			task.wait(0.07)
+			task.wait(0.08)
 		end
 		if btn.Parent then
 			Tween(btn, { Rotation = 0 }, 0.12)
@@ -1125,32 +1126,71 @@ local function indexOfTab(btn)
 	end
 end
 
-local function reorderTabs(fromIndex, toIndex)
-	if not fromIndex or not toIndex or fromIndex == toIndex then
+local function swapTabs(a, b)
+	if not a or not b or a == b then
 		return
 	end
-	if fromIndex < 1 or toIndex < 1 or toIndex > #TabButtons then
+	if a < 1 or b < 1 or a > #TabButtons or b > #TabButtons then
 		return
 	end
-	local btn = table.remove(TabButtons, fromIndex)
-	local page = table.remove(TabContainers, fromIndex)
-	table.insert(TabButtons, toIndex, btn)
-	table.insert(TabContainers, toIndex, page)
+	TabButtons[a], TabButtons[b] = TabButtons[b], TabButtons[a]
+	TabContainers[a], TabContainers[b] = TabContainers[b], TabContainers[a]
 	applyTabOrders()
 end
 
-local function targetIndexFromMouse()
+local function tabUnderFinger()
 	local mouse = UserInputService:GetMouseLocation()
-	local best, bestDist = 1, math.huge
+	local hit
 	for i, b in ipairs(TabButtons) do
-		local mid = b.AbsolutePosition.Y + (b.AbsoluteSize.Y * 0.5)
+		local p, s = b.AbsolutePosition, b.AbsoluteSize
+		if mouse.Y >= p.Y and mouse.Y <= p.Y + s.Y and mouse.X >= p.X - 24 and mouse.X <= p.X + s.X + 24 then
+			return i, b
+		end
+	end
+	local best, bestDist = nil, math.huge
+	for i, b in ipairs(TabButtons) do
+		local p, s = b.AbsolutePosition, b.AbsoluteSize
+		local mid = p.Y + s.Y * 0.5
 		local dist = math.abs(mouse.Y - mid)
 		if dist < bestDist then
 			bestDist = dist
 			best = i
+			hit = b
 		end
 	end
-	return best
+	if bestDist <= 36 then
+		return best, hit
+	end
+end
+
+local function finishTabDrag()
+	if not TabDrag.holding then
+		return
+	end
+	local source = TabDrag.source
+	local didDrag = TabDrag.dragging
+	if didDrag and source then
+		TabDrag.suppress[source] = true
+		local toIndex = TabDrag.hover or select(1, tabUnderFinger())
+		local fromIndex = indexOfTab(source)
+		swapTabs(fromIndex, toIndex)
+		task.delay(0.12, function()
+			TabDrag.suppress[source] = false
+		end)
+	end
+	for _, b in ipairs(TabButtons) do
+		stopTabShake(b)
+		if b.Parent then
+			Tween(b, { BackgroundTransparency = 0, Rotation = 0 }, 0.12)
+		end
+	end
+	MainScroll.ScrollingEnabled = true
+	WindowDraggingBlocked = false
+	TabDrag.holding = false
+	TabDrag.dragging = false
+	TabDrag.source = nil
+	TabDrag.origin = nil
+	TabDrag.hover = nil
 end
 
 local function beginTabDrag(btn, input)
@@ -1158,6 +1198,7 @@ local function beginTabDrag(btn, input)
 	TabDrag.dragging = false
 	TabDrag.source = btn
 	TabDrag.origin = input.Position
+	TabDrag.hover = indexOfTab(btn)
 	WindowDraggingBlocked = true
 end
 
@@ -1168,64 +1209,43 @@ UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-	if (input.Position - TabDrag.origin).Magnitude < 8 then
+	if (input.Position - TabDrag.origin).Magnitude < 4 then
 		return
 	end
 	if not TabDrag.dragging then
 		TabDrag.dragging = true
 		MainScroll.ScrollingEnabled = false
 		startTabShake(TabDrag.source)
-		Tween(TabDrag.source, { BackgroundTransparency = 0.18 }, 0.1)
+		Tween(TabDrag.source, { BackgroundTransparency = 0.2 }, 0.1)
 	end
-	local hover = targetIndexFromMouse()
-	local from = indexOfTab(TabDrag.source)
-	if hover and from and hover ~= from then
-		reorderTabs(from, hover)
-	end
-	for i, b in ipairs(TabButtons) do
-		if b ~= TabDrag.source and i == hover then
+	local hoverIndex, hoverBtn = tabUnderFinger()
+	TabDrag.hover = hoverIndex
+	for _, b in ipairs(TabButtons) do
+		if b == TabDrag.source then
 			startTabShake(b)
-		elseif b ~= TabDrag.source then
+		elseif b == hoverBtn then
+			startTabShake(b)
+		else
 			stopTabShake(b)
 		end
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-	if not TabDrag.holding then
-		return
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		finishTabDrag()
 	end
-	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-		return
-	end
-	local source = TabDrag.source
-	if TabDrag.dragging and source then
-		TabDrag.suppress[source] = true
-		local hover = targetIndexFromMouse()
-		local from = indexOfTab(source)
-		if hover and from then
-			reorderTabs(from, hover)
-		end
-		task.delay(0.08, function()
-			TabDrag.suppress[source] = false
-		end)
-	end
-	for _, b in ipairs(TabButtons) do
-		stopTabShake(b)
-	end
-	if source then
-		Tween(source, { BackgroundTransparency = 0, Rotation = 0 }, 0.12)
-	end
-	MainScroll.ScrollingEnabled = true
-	WindowDraggingBlocked = false
-	TabDrag.holding = false
-	TabDrag.dragging = false
-	TabDrag.source = nil
-	TabDrag.origin = nil
 end)
 
 local function SetTabActive(btn, on)
 	Tween(btn, { BackgroundColor3 = on and Color3.fromRGB(26, 26, 26) or ThemeColors.ButtonNormal }, 0.2)
+	local bar = btn:FindFirstChild("ActiveBar")
+	if bar then
+		Tween(bar, {
+			BackgroundTransparency = on and 0 or 0.82,
+			Size = on and UDim2.new(0, 3, 0, 16) or UDim2.new(0, 3, 0, 7)
+		}, 0.2)
+	end
 end
 
 function CreateTab(TabName)
@@ -1242,9 +1262,21 @@ function CreateTab(TabName)
 	StyleInteractive(TabBtn)
 	TabBtn:SetAttribute("TabName", TabName)
 
+	local activeBar = Instance.new("Frame")
+	activeBar.Name = "ActiveBar"
+	activeBar.Size = UDim2.new(0, 3, 0, 7)
+	activeBar.Position = UDim2.new(0, 4, 0.5, 0)
+	activeBar.AnchorPoint = Vector2.new(0, 0.5)
+	activeBar.BackgroundColor3 = ThemeColors.PureWhite
+	activeBar.BackgroundTransparency = 0.82
+	activeBar.BorderSizePixel = 0
+	activeBar.ZIndex = 14
+	activeBar.Parent = TabBtn
+	Instance.new("UICorner", activeBar).CornerRadius = UDim.new(1, 0)
+
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 18, 0, 18)
-	icon.Position = UDim2.new(0, 10, 0.5, 0)
+	icon.Position = UDim2.new(0, 12, 0.5, 0)
 	icon.AnchorPoint = Vector2.new(0, 0.5)
 	icon.BackgroundTransparency = 1
 	icon.Image = "rbxthumb://type=Asset&id=76809797628298&w=420&h=420"
@@ -1305,6 +1337,11 @@ function CreateTab(TabName)
 	TabBtn.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			beginTabDrag(TabBtn, input)
+		end
+	end)
+	TabBtn.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			finishTabDrag()
 		end
 	end)
 
