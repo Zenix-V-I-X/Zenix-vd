@@ -170,54 +170,14 @@ local function StyleInteractive(frame)
 	if frame:IsA("GuiButton") then
 		frame.AutoButtonColor = false
 	end
-
-	local shine = frame:FindFirstChild("JooShine")
-	if not shine then
-		shine = Instance.new("Frame")
-		shine.Name = "JooShine"
-		shine.BackgroundColor3 = ThemeColors.PureWhite
-		shine.BackgroundTransparency = 1
-		shine.BorderSizePixel = 0
-		shine.Size = UDim2.new(0.28, 0, 1.4, 0)
-		shine.Position = UDim2.new(-0.4, 0, 0.5, 0)
-		shine.AnchorPoint = Vector2.new(0.5, 0.5)
-		shine.Rotation = 18
-		shine.ZIndex = (frame.ZIndex or 14) + 2
-		shine.Parent = frame
-		Instance.new("UICorner", shine).CornerRadius = UDim.new(1, 0)
-		local sg = Instance.new("UIGradient")
-		sg.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.5, 0.35),
-			NumberSequenceKeypoint.new(1, 1)
-		})
-		sg.Parent = shine
-	end
-
-	local stroke = frame:FindFirstChildOfClass("UIStroke")
-	local baseThickness = stroke and stroke.Thickness or 1.8
 	local hovering = false
-
-	local function playShine()
-		shine.Position = UDim2.new(-0.35, 0, 0.5, 0)
-		shine.BackgroundTransparency = 0.55
-		Tween(shine, { Position = UDim2.new(1.35, 0, 0.5, 0), BackgroundTransparency = 1 }, 0.42, Enum.EasingStyle.Quad)
-	end
-
 	frame.MouseEnter:Connect(function()
 		hovering = true
-		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonHover, BackgroundTransparency = 0.05 }, 0.18)
-		if stroke then
-			Tween(stroke, { Thickness = baseThickness + 0.4 }, 0.18)
-		end
-		playShine()
+		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonHover }, 0.16)
 	end)
 	frame.MouseLeave:Connect(function()
 		hovering = false
-		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonNormal, BackgroundTransparency = 0 }, 0.18)
-		if stroke then
-			Tween(stroke, { Thickness = baseThickness }, 0.18)
-		end
+		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonNormal }, 0.16)
 	end)
 	if frame:IsA("GuiButton") then
 		frame.MouseButton1Down:Connect(function()
@@ -225,7 +185,6 @@ local function StyleInteractive(frame)
 		end)
 		frame.MouseButton1Up:Connect(function()
 			Tween(frame, { BackgroundColor3 = hovering and ThemeColors.ButtonHover or ThemeColors.ButtonNormal }, 0.12)
-			playShine()
 		end)
 	end
 end
@@ -257,7 +216,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundTransparency = 1,
 		TextTruncate = "AtEnd",
-		TextSize = 10,
+		TextSize = 11,
 		TextXAlignment = "Left",
 		Text = "",
 		RichText = true,
@@ -271,7 +230,8 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		Position = UDim2.new(0, 12, 0, 15),
 		BackgroundTransparency = 1,
 		TextWrapped = true,
-		TextSize = 12,
+		TextTransparency = 0.28,
+		TextSize = 11,
 		TextXAlignment = "Left",
 		Text = "",
 		RichText = true,
@@ -325,7 +285,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		if type(d) == "string" and d:gsub(" ", ""):len() > 0 then
 			DescL.Text = d
 			DescL.Visible = true
-			DescL.TextTransparency = 0
+			DescL.TextTransparency = 0.28
 			LabelHolder.Position = UDim2.new(0, 10, 0)
 			LabelHolder.AnchorPoint = Vector2.new(0, 0)
 		else
@@ -894,7 +854,7 @@ Create("TextLabel", EmptyOverlay, {
 	Position = UDim2.new(0.5, 0, 0.5, -16),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
-	Text = "☹",
+	Text = "★",
 	TextColor3 = ThemeColors.SoftWhite,
 	TextSize = 34,
 	ZIndex = 21
@@ -904,7 +864,7 @@ Create("TextLabel", EmptyOverlay, {
 	Position = UDim2.new(0.5, 0, 0.5, 22),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
-	Text = "آلَتبويہبہ فاࢪغ",
+	Text = "the tap is empty",
 	TextColor3 = ThemeColors.LightGray,
 	Font = Enum.Font.GothamMedium,
 	TextSize = 14,
@@ -1144,7 +1104,7 @@ function CreateTab(TabName)
 		Text = '<font family="12187367066">' .. TabName .. "</font>",
 		TextColor3 = Theme["Color Text"],
 		Font = Enum.Font.GothamMedium,
-		TextSize = 10,
+		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		BackgroundTransparency = 1,
 		RichText = true,
@@ -1186,52 +1146,6 @@ function CreateTab(TabName)
 	table.insert(TabButtons, TabBtn)
 
 	local suppressActivate = false
-	local shaking = {}
-
-	local function stopShake(btn)
-		shaking[btn] = false
-		Tween(btn, { Rotation = 0 }, 0.14)
-		if btn:GetAttribute("BaseZ") then
-			btn.ZIndex = btn:GetAttribute("BaseZ")
-		end
-	end
-
-	local function startShake(btn, cinematic)
-		if shaking[btn] then
-			return
-		end
-		shaking[btn] = true
-		if not btn:GetAttribute("BaseZ") then
-			btn:SetAttribute("BaseZ", btn.ZIndex)
-		end
-		if cinematic then
-			btn.ZIndex = 60
-		end
-		task.spawn(function()
-			local dir = 1
-			local amp = cinematic and 8.5 or 3.4
-			local waitTime = cinematic and 0.055 or 0.09
-			while shaking[btn] and btn.Parent do
-				Tween(btn, { Rotation = amp * dir }, waitTime, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-				dir = -dir
-				task.wait(waitTime)
-			end
-			if btn.Parent then
-				Tween(btn, { Rotation = 0 }, 0.14)
-			end
-		end)
-	end
-
-	local function reorderTabs(fromIndex, toIndex)
-		if fromIndex == toIndex or fromIndex < 1 or toIndex < 1 then
-			return
-		end
-		local btn = table.remove(TabButtons, fromIndex)
-		local page = table.remove(TabContainers, fromIndex)
-		table.insert(TabButtons, toIndex, btn)
-		table.insert(TabContainers, toIndex, page)
-		applyTabOrders()
-	end
 
 	local function indexOfTab(btn)
 		for i, b in ipairs(TabButtons) do
@@ -1242,17 +1156,24 @@ function CreateTab(TabName)
 		return 1
 	end
 
-	local function targetIndexFromY(y)
-		local best, bestDist = 1, math.huge
+	local function tabIndexUnderCursor()
+		local mouse = UserInputService:GetMouseLocation()
 		for i, b in ipairs(TabButtons) do
-			local mid = b.AbsolutePosition.Y + (b.AbsoluteSize.Y * 0.5)
-			local dist = math.abs(y - mid)
-			if dist < bestDist then
-				bestDist = dist
-				best = i
+			local p, s = b.AbsolutePosition, b.AbsoluteSize
+			if mouse.X >= p.X and mouse.X <= p.X + s.X and mouse.Y >= p.Y and mouse.Y <= p.Y + s.Y then
+				return i
 			end
 		end
-		return best
+		return nil
+	end
+
+	local function swapTabs(fromIndex, toIndex)
+		if not fromIndex or not toIndex or fromIndex == toIndex then
+			return
+		end
+		TabButtons[fromIndex], TabButtons[toIndex] = TabButtons[toIndex], TabButtons[fromIndex]
+		TabContainers[fromIndex], TabContainers[toIndex] = TabContainers[toIndex], TabContainers[fromIndex]
+		applyTabOrders()
 	end
 
 	do
@@ -1268,19 +1189,8 @@ function CreateTab(TabName)
 		end)
 		UserInputService.InputChanged:Connect(function(input)
 			if holding and dragOrigin and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				if (input.Position - dragOrigin).Magnitude > 8 then
-					if not draggingTab then
-						draggingTab = true
-						startShake(TabBtn, true)
-					end
-					local hover = targetIndexFromY(input.Position.Y)
-					for i, b in ipairs(TabButtons) do
-						if b ~= TabBtn and i == hover then
-							startShake(b, false)
-						elseif b ~= TabBtn then
-							stopShake(b)
-						end
-					end
+				if (input.Position - dragOrigin).Magnitude > 10 then
+					draggingTab = true
 				end
 			end
 		end)
@@ -1288,11 +1198,8 @@ function CreateTab(TabName)
 			if holding and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 				if draggingTab then
 					suppressActivate = true
-					reorderTabs(indexOfTab(TabBtn), targetIndexFromY(input.Position.Y))
-					for _, b in ipairs(TabButtons) do
-						stopShake(b)
-					end
-					task.defer(function()
+					swapTabs(indexOfTab(TabBtn), tabIndexUnderCursor())
+					task.delay(0.05, function()
 						suppressActivate = false
 					end)
 				end
