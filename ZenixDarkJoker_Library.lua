@@ -88,7 +88,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.2.0" },
+	Info = { Version = "1.2.1" },
 	Save = { UISize = { 500, 390 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -1080,12 +1080,15 @@ MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 
 local TabContainers = {}
 local TabButtons = {}
+local TabPages = {}
 local TabDrag = {
 	holding = false,
 	dragging = false,
 	source = nil,
 	origin = nil,
 	hover = nil,
+	ghost = nil,
+	grabOffset = Vector2.new(),
 	suppress = {}
 }
 local tabShaking = {}
@@ -1108,7 +1111,7 @@ local function startTabShake(btn)
 	task.spawn(function()
 		local dir = 1
 		while tabShaking[btn] and btn.Parent do
-			Tween(btn, { Rotation = 5 * dir }, 0.08)
+			Tween(btn, { Rotation = 4 * dir }, 0.08)
 			dir = -dir
 			task.wait(0.08)
 		end
@@ -1126,40 +1129,144 @@ local function indexOfTab(btn)
 	end
 end
 
-local function swapTabs(a, b)
-	if not a or not b or a == b then
-		return
+local function syncTabArrays()
+	for i, btn in ipairs(TabButtons) do
+		TabContainers[i] = TabPages[btn]
+		btn.LayoutOrder = i
 	end
-	if a < 1 or b < 1 or a > #TabButtons or b > #TabButtons then
-		return
-	end
-	TabButtons[a], TabButtons[b] = TabButtons[b], TabButtons[a]
-	TabContainers[a], TabContainers[b] = TabContainers[b], TabContainers[a]
-	applyTabOrders()
 end
 
-local function tabUnderFinger()
-	local mouse = UserInputService:GetMouseLocation()
-	local hit
+local function swapTabs(a, b)
+	if not a or not b or a == b then
+		return false
+	end
+	if a < 1 or b < 1 or a > #TabButtons or b > #TabButtons then
+		return false
+	end
+	TabButtons[a], TabButtons[b] = TabButtons[b], TabButtons[a]
+	syncTabArrays()
+	return true
+end
+
+local function getGuiScale()
+	local scaleObj = ScreenGuiHub and ScreenGuiHub:FindFirstChild("Scale")
+	return (scaleObj and scaleObj.Scale) or UIScale or 1
+end
+
+local function tabUnderPoint(screenPos)
+	local scale = getGuiScale()
 	for i, b in ipairs(TabButtons) do
-		local p, s = b.AbsolutePosition, b.AbsoluteSize
-		if mouse.Y >= p.Y and mouse.Y <= p.Y + s.Y and mouse.X >= p.X - 24 and mouse.X <= p.X + s.X + 24 then
-			return i, b
+		if b.Parent and b ~= TabDrag.ghost then
+			local p, s = b.AbsolutePosition, b.AbsoluteSize
+			if screenPos.X >= p.X and screenPos.X <= p.X + s.X and screenPos.Y >= p.Y and screenPos.Y <= p.Y + s.Y then
+				return i, b
+			end
 		end
 	end
-	local best, bestDist = nil, math.huge
 	for i, b in ipairs(TabButtons) do
-		local p, s = b.AbsolutePosition, b.AbsoluteSize
-		local mid = p.Y + s.Y * 0.5
-		local dist = math.abs(mouse.Y - mid)
-		if dist < bestDist then
-			bestDist = dist
-			best = i
-			hit = b
+		if b.Parent and b ~= TabDrag.ghost then
+			local p, s = b.AbsolutePosition, b.AbsoluteSize
+			local pad = 10 * scale
+			if screenPos.X >= p.X - pad and screenPos.X <= p.X + s.X + pad and screenPos.Y >= p.Y - pad and screenPos.Y <= p.Y + s.Y + pad then
+				return i, b
+			end
 		end
 	end
-	if bestDist <= 36 then
-		return best, hit
+end
+
+local function destroyTabGhost()
+	if TabDrag.ghost then
+		TabDrag.ghost:Destroy()
+		TabDrag.ghost = nil
+	end
+end
+
+local function placeTabGhost(source, inputPos)
+	destroyTabGhost()
+	local scale = getGuiScale()
+	local absPos = source.AbsolutePosition
+	local absSize = source.AbsoluteSize
+	TabDrag.grabOffset = Vector2.new(inputPos.X - absPos.X, inputPos.Y - absPos.Y)
+
+	local ghost = source:Clone()
+	ghost.Name = "TabDragGhost"
+	ghost.ZIndex = 400
+	ghost.Active = false
+	ghost.AutoButtonColor = false
+	ghost.Size = UDim2.fromOffset(absSize.X / scale, absSize.Y / scale)
+	ghost.AnchorPoint = Vector2.new(0, 0)
+	ghost.Position = UDim2.fromOffset(absPos.X / scale, absPos.Y / scale)
+	ghost.BackgroundTransparency = 0.05
+	ghost.Parent = ScreenGuiHub
+
+	for _, desc in ipairs(ghost:GetDescendants()) do
+		if desc:IsA("GuiObject") then
+			desc.ZIndex = math.max(desc.ZIndex, 401)
+		end
+	end
+
+	local lift = Instance.new("UIScale")
+	lift.Name = "GhostLift"
+	lift.Scale = 1.06
+	lift.Parent = ghost
+
+	TabDrag.ghost = ghost
+	Tween(ghost, { BackgroundTransparency = 0.08 }, 0.12)
+end
+
+local function moveTabGhost(inputPos)
+	local ghost = TabDrag.ghost
+	if not ghost then
+		return
+	end
+	local scale = getGuiScale()
+	ghost.Position = UDim2.fromOffset(
+		(inputPos.X - TabDrag.grabOffset.X) / scale,
+		(inputPos.Y - TabDrag.grabOffset.Y) / scale
+	)
+end
+
+local function highlightDropTarget(targetBtn)
+	for _, b in ipairs(TabButtons) do
+		if b == TabDrag.source then
+			startTabShake(b)
+		elseif b == targetBtn then
+			startTabShake(b)
+			Tween(b, { BackgroundTransparency = 0.08 }, 0.1)
+		else
+			stopTabShake(b)
+			if b.Parent then
+				Tween(b, { BackgroundTransparency = 0, Rotation = 0 }, 0.1)
+			end
+		end
+	end
+end
+
+local function autoScrollTabs(screenPos)
+	if not MainScroll then
+		return
+	end
+	local areaPos = MainScroll.AbsolutePosition
+	local areaSize = MainScroll.AbsoluteSize
+	local edge = 28
+	local speed = 0
+	if screenPos.Y < areaPos.Y + edge then
+		speed = -18
+	elseif screenPos.Y > areaPos.Y + areaSize.Y - edge then
+		speed = 18
+	end
+	if speed ~= 0 then
+		local maxY = math.max(0, MainScroll.AbsoluteCanvasSize.Y - areaSize.Y)
+		MainScroll.CanvasPosition = Vector2.new(0, math.clamp(MainScroll.CanvasPosition.Y + speed, 0, maxY))
+	end
+end
+
+local function resetTabVisuals()
+	for _, b in ipairs(TabButtons) do
+		stopTabShake(b)
+		if b.Parent then
+			Tween(b, { BackgroundTransparency = 0, Rotation = 0 }, 0.12)
+		end
 	end
 end
 
@@ -1169,21 +1276,21 @@ local function finishTabDrag()
 	end
 	local source = TabDrag.source
 	local didDrag = TabDrag.dragging
+	local hoverIndex = TabDrag.hover
+	local fromIndex = indexOfTab(source)
+
 	if didDrag and source then
 		TabDrag.suppress[source] = true
-		local toIndex = TabDrag.hover or select(1, tabUnderFinger())
-		local fromIndex = indexOfTab(source)
-		swapTabs(fromIndex, toIndex)
-		task.delay(0.12, function()
+		if hoverIndex and fromIndex and hoverIndex ~= fromIndex then
+			swapTabs(fromIndex, hoverIndex)
+		end
+		task.delay(0.15, function()
 			TabDrag.suppress[source] = false
 		end)
 	end
-	for _, b in ipairs(TabButtons) do
-		stopTabShake(b)
-		if b.Parent then
-			Tween(b, { BackgroundTransparency = 0, Rotation = 0 }, 0.12)
-		end
-	end
+
+	destroyTabGhost()
+	resetTabVisuals()
 	MainScroll.ScrollingEnabled = true
 	WindowDraggingBlocked = false
 	TabDrag.holding = false
@@ -1191,9 +1298,13 @@ local function finishTabDrag()
 	TabDrag.source = nil
 	TabDrag.origin = nil
 	TabDrag.hover = nil
+	TabDrag.grabOffset = Vector2.new()
 end
 
 local function beginTabDrag(btn, input)
+	if Minimized then
+		return
+	end
 	TabDrag.holding = true
 	TabDrag.dragging = false
 	TabDrag.source = btn
@@ -1209,26 +1320,24 @@ UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-	if (input.Position - TabDrag.origin).Magnitude < 4 then
+	if (input.Position - TabDrag.origin).Magnitude < 8 then
 		return
 	end
 	if not TabDrag.dragging then
 		TabDrag.dragging = true
 		MainScroll.ScrollingEnabled = false
+		placeTabGhost(TabDrag.source, input.Position)
+		Tween(TabDrag.source, { BackgroundTransparency = 0.55 }, 0.12)
 		startTabShake(TabDrag.source)
-		Tween(TabDrag.source, { BackgroundTransparency = 0.2 }, 0.1)
 	end
-	local hoverIndex, hoverBtn = tabUnderFinger()
+	moveTabGhost(input.Position)
+	autoScrollTabs(input.Position)
+	local hoverIndex, hoverBtn = tabUnderPoint(input.Position)
+	if hoverBtn == TabDrag.source then
+		hoverIndex, hoverBtn = nil, nil
+	end
 	TabDrag.hover = hoverIndex
-	for _, b in ipairs(TabButtons) do
-		if b == TabDrag.source then
-			startTabShake(b)
-		elseif b == hoverBtn then
-			startTabShake(b)
-		else
-			stopTabShake(b)
-		end
-	end
+	highlightDropTarget(hoverBtn)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -1330,8 +1439,9 @@ function CreateTab(TabName)
 	Page.ChildRemoved:Connect(refreshEmpty)
 
 	TabBtn.LayoutOrder = #TabButtons + 1
-	table.insert(TabContainers, Page)
+	TabPages[TabBtn] = Page
 	table.insert(TabButtons, TabBtn)
+	table.insert(TabContainers, Page)
 
 	TabBtn.Active = true
 	TabBtn.InputBegan:Connect(function(input)
