@@ -287,19 +287,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		ZIndex = 14
 	})
 	redzlib.Elements["Corner"](Frame, UDim.new(0, 8))
-	ApplyMetallicBorder(Frame, 1.8)
-
-	local accent = Instance.new("Frame")
-	accent.Name = "ZenixAccent"
-	accent.Size = UDim2.new(0, 3, 0.62, 0)
-	accent.Position = UDim2.new(0, 4, 0.5, 0)
-	accent.AnchorPoint = Vector2.new(0, 0.5)
-	accent.BackgroundColor3 = ThemeColors.PureWhite
-	accent.BackgroundTransparency = 0.25
-	accent.BorderSizePixel = 0
-	accent.ZIndex = 16
-	accent.Parent = Frame
-	Instance.new("UICorner", accent).CornerRadius = UDim.new(1, 0)
+	ApplyMetallicBorder(Frame, 2.1)
 
 	local inner = Instance.new("Frame")
 	inner.Name = "JooInner"
@@ -327,6 +315,9 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		DescL
 	})
 
+	DescL.TextTransparency = 1
+	DescL.Visible = false
+
 	local Label = {}
 	function Label:SetTitle(t)
 		if type(t) == "string" and t:gsub(" ", ""):len() > 0 then
@@ -335,8 +326,9 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 	end
 	function Label:SetDesc(d)
 		if type(d) == "string" and d:gsub(" ", ""):len() > 0 then
-			DescL.Visible = true
 			DescL.Text = d
+			DescL.Visible = true
+			DescL.TextTransparency = 1
 			LabelHolder.Position = UDim2.new(0, 10, 0)
 			LabelHolder.AnchorPoint = Vector2.new(0, 0)
 		else
@@ -348,7 +340,51 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 	end
 	Label:SetTitle(Title)
 	Label:SetDesc(Description)
+	DescWatch = DescWatch or {}
+	DescWatch[Container] = DescWatch[Container] or {}
+	table.insert(DescWatch[Container], { frame = Frame, desc = DescL })
 	return Frame, Label
+end
+
+local DescWatch = {}
+local DescArmed = {}
+
+local function descInView(el, window)
+	if not el or not window then
+		return false
+	end
+	local wp, ws = window.AbsolutePosition, window.AbsoluteSize
+	local p, s = el.AbsolutePosition, el.AbsoluteSize
+	return (p.Y + s.Y) > (wp.Y + 6) and p.Y < (wp.Y + ws.Y - 6)
+end
+
+local function updatePageDescs(page)
+	for _, item in ipairs(DescWatch[page] or {}) do
+		if item.desc and item.desc.Text ~= "" then
+			local show = DescArmed[page] == true and descInView(item.frame, page)
+			item.desc.Visible = true
+			Tween(item.desc, { TextTransparency = show and 0 or 1 }, 0.32, Enum.EasingStyle.Quad)
+		end
+	end
+end
+
+local function hidePageDescs(page)
+	DescArmed[page] = false
+	for _, item in ipairs(DescWatch[page] or {}) do
+		if item.desc then
+			item.desc.TextTransparency = 1
+		end
+	end
+end
+
+local function armPageDescs(page)
+	hidePageDescs(page)
+	task.delay(1, function()
+		if page and page.Parent == Containers then
+			DescArmed[page] = true
+			updatePageDescs(page)
+		end
+	end)
 end
 
 local activeNotifications = {}
@@ -875,7 +911,7 @@ Create("TextLabel", EmptyOverlay, {
 	Position = UDim2.new(0.5, 0, 0.5, -16),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
-	Text = "⚝",
+	Text = "☹",
 	TextColor3 = ThemeColors.SoftWhite,
 	TextSize = 34,
 	ZIndex = 21
@@ -954,27 +990,16 @@ local SearchClear = Create("TextButton", SearchHolder, {
 	ZIndex = 16
 })
 
-local StarDock = Create("Frame", TopBar, {
-	Name = "StarDock",
-	Size = UDim2.new(0, 0, 0, 16),
-	AutomaticSize = Enum.AutomaticSize.X,
-	Position = UDim2.new(1, -146, 0.5, 0),
-	AnchorPoint = Vector2.new(1, 0.5),
-	BackgroundTransparency = 1,
-	ZIndex = 14
-})
-Create("UIListLayout", StarDock, {
-	FillDirection = Enum.FillDirection.Horizontal,
-	Padding = UDim.new(0, 2),
-	VerticalAlignment = Enum.VerticalAlignment.Center,
-	SortOrder = Enum.SortOrder.LayoutOrder
-})
-
 local function FilterTabs(query)
 	query = tostring(query or "")
-	for _, btn in ipairs(TabButtons) do
+	query = query:gsub("^%s+", ""):gsub("%s+$", "")
+	for _, btn in ipairs(TabButtons or {}) do
 		local name = tostring(btn:GetAttribute("TabName") or "")
-		btn.Visible = (query == "") or (string.sub(name, 1, #query) == query)
+		if query == "" then
+			btn.Visible = true
+		else
+			btn.Visible = string.find(string.lower(name), string.lower(query), 1, true) ~= nil
+		end
 	end
 end
 
@@ -987,161 +1012,9 @@ SearchClear.Activated:Connect(function()
 end)
 
 local function applyTabOrders()
-	local order = 1
-	for _, btn in ipairs(TabButtons) do
-		if btn:GetAttribute("Pinned") then
-			btn.LayoutOrder = order
-			order += 1
-		end
+	for i, btn in ipairs(TabButtons or {}) do
+		btn.LayoutOrder = i
 	end
-	for _, btn in ipairs(TabButtons) do
-		if not btn:GetAttribute("Pinned") then
-			btn.LayoutOrder = order
-			order += 1
-		end
-	end
-end
-
-local function moveTabInList(btn, newIndex)
-	local from = 1
-	for i, b in ipairs(TabButtons) do
-		if b == btn then
-			from = i
-			break
-		end
-	end
-	newIndex = math.clamp(newIndex, 1, #TabButtons)
-	if from == newIndex then
-		return
-	end
-	local tabBtn = table.remove(TabButtons, from)
-	local page = table.remove(TabContainers, from)
-	table.insert(TabButtons, newIndex, tabBtn)
-	table.insert(TabContainers, newIndex, page)
-	applyTabOrders()
-end
-
-local function firstUnpinnedIndex()
-	for i, b in ipairs(TabButtons) do
-		if not b:GetAttribute("Pinned") then
-			return i
-		end
-	end
-	return #TabButtons + 1
-end
-
-local function tabUnderPoint(pos)
-	for _, btn in ipairs(TabButtons) do
-		if btn.Visible then
-			local p, s = btn.AbsolutePosition, btn.AbsoluteSize
-			if pos.X >= p.X and pos.X <= p.X + s.X and pos.Y >= p.Y and pos.Y <= p.Y + s.Y then
-				return btn
-			end
-		end
-	end
-end
-
-local function attachStarToTab(star, tabBtn)
-	star.Parent = tabBtn
-	star.Size = UDim2.new(0, 11, 0, 11)
-	star.Position = UDim2.new(0, 1, 0, 0)
-	star.AnchorPoint = Vector2.new(0, 0)
-	star.ZIndex = 22
-	star:SetAttribute("OnTab", true)
-end
-
-local function returnStarToDock(star)
-	star.Parent = StarDock
-	star.Size = UDim2.new(0, 14, 0, 14)
-	star.Position = UDim2.new(0, 0, 0, 0)
-	star.AnchorPoint = Vector2.new(0, 0)
-	star.ZIndex = 16
-	star:SetAttribute("OnTab", false)
-end
-
-local function unpinTab(tabBtn)
-	local star = tabBtn:FindFirstChild("PoolStar")
-	tabBtn:SetAttribute("Pinned", false)
-	if star then
-		returnStarToDock(star)
-	end
-	moveTabInList(tabBtn, firstUnpinnedIndex())
-	applyTabOrders()
-end
-
-local function pinTab(tabBtn, star)
-	if tabBtn:GetAttribute("Pinned") then
-		returnStarToDock(star)
-		return
-	end
-	tabBtn:SetAttribute("Pinned", true)
-	attachStarToTab(star, tabBtn)
-	moveTabInList(tabBtn, 1)
-	applyTabOrders()
-end
-
-local function CreatePoolStar()
-	local star = Create("TextButton", StarDock, {
-		Name = "PoolStar",
-		Size = UDim2.new(0, 14, 0, 14),
-		BackgroundTransparency = 1,
-		Text = "★",
-		TextColor3 = Color3.fromRGB(240, 240, 240),
-		TextSize = 12,
-		AutoButtonColor = false,
-		ZIndex = 16
-	})
-	star:SetAttribute("OnTab", false)
-
-	local holding, dragging, origin = false, false, nil
-	star.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			if star:GetAttribute("OnTab") then
-				return
-			end
-			holding = true
-			dragging = false
-			origin = input.Position
-		end
-	end)
-	UserInputService.InputChanged:Connect(function(input)
-		if holding and origin and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-			if (input.Position - origin).Magnitude > 6 then
-				if not dragging then
-					dragging = true
-					star.Parent = ScreenGuiHub
-					star.AnchorPoint = Vector2.new(0.5, 0.5)
-					star.ZIndex = 90
-				end
-				local scale = ScreenGuiHub.Scale.Scale
-				star.Position = UDim2.fromOffset(input.Position.X / scale, input.Position.Y / scale)
-			end
-		end
-	end)
-	UserInputService.InputEnded:Connect(function(input)
-		if holding and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-			if dragging then
-				local target = tabUnderPoint(input.Position)
-				if target and not target:GetAttribute("Pinned") then
-					pinTab(target, star)
-				else
-					returnStarToDock(star)
-				end
-			end
-			holding = false
-			dragging = false
-			origin = nil
-		end
-	end)
-	star.Activated:Connect(function()
-		if star:GetAttribute("OnTab") then
-			local tabBtn = star.Parent
-			if tabBtn and tabBtn:IsA("GuiButton") then
-				unpinTab(tabBtn)
-			end
-		end
-	end)
-	return star
 end
 
 local Minimized, SaveSize, WaitClick
@@ -1176,9 +1049,6 @@ local function SetExtraChrome(vis)
 	end
 	if SearchHolder then
 		SearchHolder.Visible = vis
-	end
-	if StarDock then
-		StarDock.Visible = vis
 	end
 end
 
@@ -1321,13 +1191,6 @@ local TabButtons = {}
 
 local function SetTabActive(btn, on)
 	Tween(btn, { BackgroundColor3 = on and Color3.fromRGB(26, 26, 26) or ThemeColors.ButtonNormal }, 0.2)
-	local bar = btn:FindFirstChild("ActiveBar")
-	if bar then
-		Tween(bar, {
-			BackgroundTransparency = on and 0 or 0.82,
-			Size = on and UDim2.new(0, 3, 0, 16) or UDim2.new(0, 3, 0, 7)
-		}, 0.2)
-	end
 end
 
 function CreateTab(TabName)
@@ -1340,23 +1203,9 @@ function CreateTab(TabName)
 		ZIndex = 12
 	})
 	redzlib.Elements["Corner"](TabBtn, UDim.new(0, 8))
-	ApplyMetallicBorder(TabBtn, 1.8)
+	ApplyMetallicBorder(TabBtn, 2.1)
 	StyleInteractive(TabBtn)
 	TabBtn:SetAttribute("TabName", TabName)
-	TabBtn:SetAttribute("Pinned", false)
-	CreatePoolStar()
-
-	local activeBar = Instance.new("Frame")
-	activeBar.Name = "ActiveBar"
-	activeBar.Size = UDim2.new(0, 3, 0, 7)
-	activeBar.Position = UDim2.new(0, 3, 0.5, 0)
-	activeBar.AnchorPoint = Vector2.new(0, 0.5)
-	activeBar.BackgroundColor3 = ThemeColors.PureWhite
-	activeBar.BackgroundTransparency = 0.82
-	activeBar.BorderSizePixel = 0
-	activeBar.ZIndex = 14
-	activeBar.Parent = TabBtn
-	Instance.new("UICorner", activeBar).CornerRadius = UDim.new(1, 0)
 
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 18, 0, 18)
@@ -1533,10 +1382,15 @@ function CreateTab(TabName)
 		end)
 	end
 
+	Page:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		updatePageDescs(Page)
+	end)
+
 	if #TabContainers == 1 then
 		Page.Parent = Containers
 		SetTabActive(TabBtn, true)
 		refreshEmpty()
+		armPageDescs(Page)
 	end
 
 	TabBtn.Activated:Connect(function()
@@ -1544,12 +1398,14 @@ function CreateTab(TabName)
 			return
 		end
 		for i, p in ipairs(TabContainers) do
+			hidePageDescs(p)
 			p.Parent = nil
 			SetTabActive(TabButtons[i], false)
 		end
 		Page.Parent = Containers
 		SetTabActive(TabBtn, true)
 		refreshEmpty()
+		armPageDescs(Page)
 	end)
 
 	local Tab = {}
