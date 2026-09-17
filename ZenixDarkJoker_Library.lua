@@ -89,8 +89,8 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.2.5" },
-	Save = { UISize = { 500, 390 }, TabSize = 160, Theme = "Dark" }
+	Info = { Version = "1.2.8" },
+	Save = { UISize = { 480, 370 }, TabSize = 160, Theme = "Dark" }
 }
 
 local ViewportSize = workspace.CurrentCamera.ViewportSize
@@ -453,8 +453,8 @@ local function StopMusic()
 end
 
 MainHubFrame = Create("ImageLabel", ScreenGuiHub, {
-	Size = UDim2.new(0, 500, 0, 390),
-	Position = UDim2.new(0.5, -250, 0.5, -171),
+	Size = UDim2.new(0, 480, 0, 370),
+	Position = UDim2.new(0.5, -240, 0.5, -161),
 	BackgroundTransparency = 1,
 	Visible = false,
 	Active = true,
@@ -467,7 +467,7 @@ local WindowBackground = Create("ImageLabel", MainHubFrame, {
 	Size = UDim2.new(1, 0, 1, 0),
 	Position = UDim2.new(0, 0, 0, 0),
 	BackgroundTransparency = 0,
-	Image = "rbxthumb://type=Asset&id=76892256611627&w=420&h=420",
+	Image = "rbxthumb://type=Asset&id=115546808060232&w=420&h=420",
 	ImageTransparency = 0.1,
 	ScaleType = Enum.ScaleType.Crop,
 	ZIndex = 0
@@ -482,6 +482,15 @@ CloudImage.Image = "rbxthumb://type=Asset&id=79765384238686&w=420&h=420"
 CloudImage.BackgroundTransparency = 1
 CloudImage.ZIndex = 0
 CloudImage.Name = "Cloud"
+
+local CornerImage = Instance.new("ImageLabel", MainHubFrame)
+CornerImage.Size = UDim2.new(0, 190, 0, 190)
+CornerImage.Position = UDim2.new(0, 100, 0, -96)
+CornerImage.AnchorPoint = Vector2.new(0.5, 0.5)
+CornerImage.Image = "rbxthumb://type=Asset&id=83849225265819&w=420&h=420"
+CornerImage.BackgroundTransparency = 1
+CornerImage.ZIndex = 0
+CornerImage.Name = "CornerArt"
 
 local ParticleContainer = Instance.new("Frame")
 ParticleContainer.Name = "Particles"
@@ -620,7 +629,7 @@ local ToggleButton = Instance.new("ImageButton", ScreenGuiHub)
 ToggleButton.Size = UDim2.new(0, 56, 0, 56)
 ToggleButton.Position = UDim2.new(0.02, 0, 0.28, 0)
 ToggleButton.BackgroundTransparency = 1
-ToggleButton.Image = "rbxthumb://type=Asset&id=76841742830292&w=150&h=150"
+ToggleButton.Image = "rbxthumb://type=Asset&id=139310212444862&w=150&h=150"
 ToggleButton.ScaleType = Enum.ScaleType.Fit
 ToggleButton.ZIndex = 50
 ToggleButton.Name = "ZenixToggle"
@@ -1093,6 +1102,7 @@ local TabDrag = {
 	dragInput = nil,
 	dragStart = nil,
 	startPos = nil,
+	finger = nil,
 	suppress = {}
 }
 local tabShaking = {}
@@ -1105,9 +1115,26 @@ local function getGuiScale()
 	return UIScale or 1
 end
 
+local function fingerPoints(input)
+	local points = {}
+	local mouse = UserInputService:GetMouseLocation()
+	if mouse then
+		table.insert(points, mouse)
+	end
+	if input then
+		local pos = Vector2.new(input.Position.X, input.Position.Y)
+		local inset = GuiService:GetGuiInset()
+		table.insert(points, pos)
+		table.insert(points, pos + inset)
+	end
+	if TabDrag.finger then
+		table.insert(points, TabDrag.finger)
+	end
+	return points
+end
+
 local function inputScreenPos(input)
-	local inset = GuiService:GetGuiInset()
-	return Vector2.new(input.Position.X + inset.X, input.Position.Y + inset.Y)
+	return UserInputService:GetMouseLocation() or (input and Vector2.new(input.Position.X, input.Position.Y))
 end
 
 local function stopTabShake(btn)
@@ -1165,13 +1192,57 @@ local function swapTabs(a, b)
 	return true
 end
 
-local function tabUnderInput(input)
-	local screenPos = inputScreenPos(input)
-	for i, b in ipairs(TabButtons) do
-		if b.Parent and b.Visible then
-			local p, s = b.AbsolutePosition, b.AbsoluteSize
-			if screenPos.X >= p.X and screenPos.X <= p.X + s.X and screenPos.Y >= p.Y and screenPos.Y <= p.Y + s.Y then
+local function isGhostObject(obj)
+	local cur = obj
+	while cur and cur ~= ScreenGuiHub do
+		if cur.Name == "TabDragGhost" then
+			return true
+		end
+		cur = cur.Parent
+	end
+	return false
+end
+
+local function tabFromGuiObject(obj)
+	local cur = obj
+	while cur and cur ~= ScreenGuiHub do
+		if cur.Name == "TabDragGhost" then
+			return
+		end
+		for i, b in ipairs(TabButtons) do
+			if b == cur then
 				return i, b
+			end
+		end
+		cur = cur.Parent
+	end
+end
+
+local function tabUnderInput(input)
+	for _, pos in ipairs(fingerPoints(input)) do
+		local ok, objs = pcall(function()
+			return playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
+		end)
+		if ok and objs then
+			for _, obj in ipairs(objs) do
+				if not isGhostObject(obj) then
+					local index, btn = tabFromGuiObject(obj)
+					if btn and btn ~= TabDrag.source then
+						return index, btn
+					end
+				end
+			end
+		end
+	end
+
+	local pad = UserInputService.TouchEnabled and 16 or 8
+	for _, pos in ipairs(fingerPoints(input)) do
+		for i, b in ipairs(TabButtons) do
+			if b.Parent and b.Visible and b ~= TabDrag.source then
+				local p, s = b.AbsolutePosition, b.AbsoluteSize
+				if pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad then
+					return i, b
+				end
 			end
 		end
 	end
@@ -1325,6 +1396,7 @@ local function clearTabDragState()
 	TabDrag.dragInput = nil
 	TabDrag.dragStart = nil
 	TabDrag.startPos = nil
+	TabDrag.finger = nil
 end
 
 local function returnGhostHome(source, done)
@@ -1357,10 +1429,7 @@ local function finishTabDrag(input)
 	end
 	local source = TabDrag.source
 	local didDrag = TabDrag.dragging
-	local hoverIndex, hoverBtn = nil, nil
-	if input then
-		hoverIndex, hoverBtn = tabUnderInput(input)
-	end
+	local hoverIndex, hoverBtn = tabUnderInput(input)
 	if hoverBtn == source then
 		hoverIndex, hoverBtn = nil, nil
 	end
@@ -1428,7 +1497,8 @@ UserInputService.InputChanged:Connect(function(input)
 		Tween(TabDrag.source, { BackgroundTransparency = 0.62 }, 0.12)
 	end
 	moveTabGhost(input)
-	autoScrollTabs(inputScreenPos(input))
+	TabDrag.finger = UserInputService:GetMouseLocation()
+	autoScrollTabs(TabDrag.finger)
 	local hoverIndex, hoverBtn = tabUnderInput(input)
 	if hoverBtn == TabDrag.source then
 		hoverIndex, hoverBtn = nil, nil
