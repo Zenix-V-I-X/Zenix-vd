@@ -90,7 +90,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.3.2" },
+	Info = { Version = "1.3.3" },
 	Save = { UISize = { 480, 370 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -1183,14 +1183,15 @@ local function syncTabArrays()
 	end
 end
 
-local function swapTabs(a, b)
-	if not a or not b or a == b then
+local function moveTab(fromIndex, toIndex)
+	if not fromIndex or not toIndex or fromIndex == toIndex then
 		return false
 	end
-	if a < 1 or b < 1 or a > #TabButtons or b > #TabButtons then
+	if fromIndex < 1 or toIndex < 1 or fromIndex > #TabButtons or toIndex > #TabButtons then
 		return false
 	end
-	TabButtons[a], TabButtons[b] = TabButtons[b], TabButtons[a]
+	local movingBtn = table.remove(TabButtons, fromIndex)
+	table.insert(TabButtons, toIndex, movingBtn)
 	syncTabArrays()
 	return true
 end
@@ -1237,38 +1238,36 @@ local function tabUnderInput(input)
 	if pos.X < lp.X - 20 or pos.X > lp.X + ls.X + 24 then
 		return
 	end
-
-	local slots = {}
-	for i, b in ipairs(TabButtons) do
-		if b.Parent and b.Visible then
-			table.insert(slots, {
-				index = i,
-				btn = b,
-				top = b.AbsolutePosition.Y,
-				height = b.AbsoluteSize.Y
-			})
-		end
-	end
-	table.sort(slots, function(a, b)
-		return a.top < b.top
-	end)
-	if #slots == 0 then
+	if pos.Y < lp.Y - 20 or pos.Y > lp.Y + ls.Y + 20 then
 		return
 	end
 
-	for i, slot in ipairs(slots) do
-		local bottom
-		if slots[i + 1] then
-			bottom = slots[i + 1].top
-		else
-			bottom = slot.top + slot.height + 10
-		end
-		if pos.Y >= slot.top and pos.Y < bottom then
-			if slot.btn ~= TabDrag.source then
-				return slot.index, slot.btn
+	local closestIndex = nil
+	local closestDist = math.huge
+	local closestBtn = nil
+
+	for i, b in ipairs(TabButtons) do
+		if b.Parent and b.Visible then
+			local bTop = b.AbsolutePosition.Y
+			local bSizeY = b.AbsoluteSize.Y
+			local bBottom = bTop + bSizeY
+			local bCenter = bTop + (bSizeY / 2)
+			if pos.Y >= bTop and pos.Y <= bBottom then
+				if b ~= TabDrag.source then
+					return i, b
+				end
 			end
-			return
+			local dist = math.abs(pos.Y - bCenter)
+			if dist < closestDist then
+				closestDist = dist
+				closestIndex = i
+				closestBtn = b
+			end
 		end
+	end
+
+	if closestBtn and closestBtn ~= TabDrag.source and closestDist < (closestBtn.AbsoluteSize.Y * 0.8) then
+		return closestIndex, closestBtn
 	end
 end
 
@@ -1424,12 +1423,11 @@ local function clearTabDragState()
 	TabDrag.finger = nil
 end
 
-local function returnGhostHome(source, done)
+local function returnGhostHome(source, callback)
 	local ghost = TabDrag.ghost
 	if not ghost or not ghost.Parent or not source or not source.Parent then
-		destroyTabGhost()
-		if done then
-			done()
+		if callback then
+			callback()
 		end
 		return
 	end
@@ -1439,11 +1437,10 @@ local function returnGhostHome(source, done)
 		(source.AbsolutePosition.X - parentPos.X) / scale,
 		(source.AbsolutePosition.Y - parentPos.Y) / scale
 	)
-	local tw = Tween(ghost, { Position = dest, BackgroundTransparency = 0.35 }, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local tw = Tween(ghost, { Position = dest, BackgroundTransparency = 0.35 }, 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	tw.Completed:Connect(function()
-		destroyTabGhost()
-		if done then
-			done()
+		if callback then
+			callback()
 		end
 	end)
 end
@@ -1461,8 +1458,12 @@ local function finishTabDrag(input)
 	local fromIndex = indexOfTab(source)
 
 	local function finishReset()
+		destroyTabGhost()
 		resetTabVisuals()
 		clearTabDragState()
+		if MainScroll then
+			MainScroll.ScrollingEnabled = true
+		end
 	end
 
 	if didDrag and source then
@@ -1471,8 +1472,7 @@ local function finishTabDrag(input)
 			TabDrag.suppress[source] = false
 		end)
 		if hoverIndex and fromIndex and hoverIndex ~= fromIndex then
-			destroyTabGhost()
-			swapTabs(fromIndex, hoverIndex)
+			moveTab(fromIndex, hoverIndex)
 			finishReset()
 			return
 		end
@@ -1480,7 +1480,6 @@ local function finishTabDrag(input)
 		return
 	end
 
-	destroyTabGhost()
 	finishReset()
 end
 
