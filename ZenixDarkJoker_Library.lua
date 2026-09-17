@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local UIFontFace = Font.new("rbxassetid://12187360881")
 local activeGradients = {}
 
 local function Tween(obj, props, time, style, dir)
@@ -89,7 +90,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.2.8" },
+	Info = { Version = "1.3.0" },
 	Save = { UISize = { 480, 370 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -219,7 +220,7 @@ end
 
 local function ButtonFrame(Container, Title, Description, HolderSize)
 	local TitleL = Create("TextLabel", {
-		Font = Enum.Font.GothamMedium,
+		FontFace = UIFontFace,
 		TextColor3 = Theme["Color Text"],
 		Size = UDim2.new(1, -20),
 		AutomaticSize = "Y",
@@ -234,7 +235,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		ZIndex = 15
 	})
 	local DescL = Create("TextLabel", {
-		Font = Enum.Font.Gotham,
+		FontFace = UIFontFace,
 		TextColor3 = Theme["Color Dark Text"],
 		Size = UDim2.new(1, -20),
 		AutomaticSize = "Y",
@@ -289,7 +290,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 	local Label = {}
 	function Label:SetTitle(t)
 		if type(t) == "string" and t:gsub(" ", ""):len() > 0 then
-			TitleL.Text = '<font family="12187367066">' .. t .. "</font>"
+			TitleL.Text = '<font family="12187360881">' .. t .. "</font>"
 		end
 	end
 	function Label:SetDesc(d)
@@ -355,7 +356,7 @@ function CreateNotification(text, duration)
 	titleLabel.TextSize = 13
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.FontFace = UIFontFace
 	titleLabel.ZIndex = 101
 	titleLabel.Parent = frame
 
@@ -368,7 +369,7 @@ function CreateNotification(text, duration)
 	textLabel.TextXAlignment = Enum.TextXAlignment.Left
 	textLabel.TextWrapped = true
 	textLabel.BackgroundTransparency = 1
-	textLabel.Font = Enum.Font.GothamMedium
+	textLabel.FontFace = UIFontFace
 	textLabel.ZIndex = 101
 	textLabel.Parent = frame
 
@@ -482,15 +483,6 @@ CloudImage.Image = "rbxthumb://type=Asset&id=79765384238686&w=420&h=420"
 CloudImage.BackgroundTransparency = 1
 CloudImage.ZIndex = 0
 CloudImage.Name = "Cloud"
-
-local CornerImage = Instance.new("ImageLabel", MainHubFrame)
-CornerImage.Size = UDim2.new(0, 190, 0, 190)
-CornerImage.Position = UDim2.new(0, 100, 0, -96)
-CornerImage.AnchorPoint = Vector2.new(0.5, 0.5)
-CornerImage.Image = "rbxthumb://type=Asset&id=83849225265819&w=420&h=420"
-CornerImage.BackgroundTransparency = 1
-CornerImage.ZIndex = 0
-CornerImage.Name = "CornerArt"
 
 local ParticleContainer = Instance.new("Frame")
 ParticleContainer.Name = "Particles"
@@ -629,7 +621,7 @@ local ToggleButton = Instance.new("ImageButton", ScreenGuiHub)
 ToggleButton.Size = UDim2.new(0, 56, 0, 56)
 ToggleButton.Position = UDim2.new(0.02, 0, 0.28, 0)
 ToggleButton.BackgroundTransparency = 1
-ToggleButton.Image = "rbxthumb://type=Asset&id=139310212444862&w=150&h=150"
+ToggleButton.Image = "rbxthumb://type=Asset&id=119083751327719&w=150&h=150"
 ToggleButton.ScaleType = Enum.ScaleType.Fit
 ToggleButton.ZIndex = 50
 ToggleButton.Name = "ZenixToggle"
@@ -731,11 +723,22 @@ local TopBar = Create("Frame", Components, {
 
 MakeDrag(TopBar, MainHubFrame)
 
+local TitleIcon = Instance.new("ImageLabel")
+TitleIcon.Name = "TitleIcon"
+TitleIcon.Size = UDim2.new(0, 16, 0, 16)
+TitleIcon.Position = UDim2.new(0, 8, 0.5, 0)
+TitleIcon.AnchorPoint = Vector2.new(0, 0.5)
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Image = "rbxthumb://type=Asset&id=83849225265819&w=150&h=150"
+TitleIcon.ScaleType = Enum.ScaleType.Fit
+TitleIcon.ZIndex = 12
+TitleIcon.Parent = TopBar
+
 local Title = Create("TextLabel", TopBar, {
-	Position = UDim2.new(0, 30, 0.5),
+	Position = UDim2.new(0, 28, 0.5),
 	AnchorPoint = Vector2.new(0, 0.5),
 	AutomaticSize = "XY",
-	Text = '<font family="12187375194">Zenix Dark Joker</font>',
+	Text = '<font family="12187360881">Zenix Dark Joker</font>',
 	RichText = true,
 	TextXAlignment = "Left",
 	TextSize = 13.8,
@@ -750,7 +753,7 @@ Create("TextLabel", Title, {
 	AutomaticSize = "X",
 	AnchorPoint = Vector2.new(0, 1),
 	Position = UDim2.new(1, 5, 0.9),
-	Text = '<font family="12187367066">by go2mohamed  |  </font><font family="12187367066">BROOKHAVEN SCRIPT</font>',
+	Text = '<font family="12187360881">by go2mohamed  |  </font><font family="12187360881">BROOKHAVEN SCRIPT</font>',
 	RichText = true,
 	TextColor3 = Theme["Color Dark Text"],
 	BackgroundTransparency = 1,
@@ -888,7 +891,7 @@ Create("TextLabel", EmptyOverlay, {
 	BackgroundTransparency = 1,
 	Text = "the tap is empty",
 	TextColor3 = ThemeColors.LightGray,
-	Font = Enum.Font.GothamMedium,
+	FontFace = UIFontFace,
 	TextSize = 14,
 	ZIndex = 21
 })
@@ -998,7 +1001,7 @@ function Window:Dialog(Configs)
 		ZIndex = 101
 	}, {
 		Create("TextLabel", {
-			Font = Enum.Font.GothamBold,
+			FontFace = UIFontFace,
 			Size = UDim2.new(1, 0, 0, 20),
 			Text = DTitle,
 			TextXAlignment = "Left",
@@ -1009,7 +1012,7 @@ function Window:Dialog(Configs)
 			ZIndex = 102
 		}),
 		Create("TextLabel", {
-			Font = Enum.Font.GothamMedium,
+			FontFace = UIFontFace,
 			Size = UDim2.new(1, -25),
 			AutomaticSize = "Y",
 			Text = DText,
@@ -1052,7 +1055,7 @@ function Window:Dialog(Configs)
 
 		local Button = Create("TextButton", ButtonsHolder, {
 			Text = Name,
-			Font = Enum.Font.GothamBold,
+			FontFace = UIFontFace,
 			TextColor3 = Theme["Color Text"],
 			TextSize = 12,
 			BackgroundColor3 = ThemeColors.ButtonNormal,
@@ -1235,14 +1238,31 @@ local function tabUnderInput(input)
 		end
 	end
 
-	local pad = UserInputService.TouchEnabled and 16 or 8
-	for _, pos in ipairs(fingerPoints(input)) do
-		for i, b in ipairs(TabButtons) do
-			if b.Parent and b.Visible and b ~= TabDrag.source then
-				local p, s = b.AbsolutePosition, b.AbsoluteSize
-				if pos.X >= p.X - pad and pos.X <= p.X + s.X + pad and pos.Y >= p.Y - pad and pos.Y <= p.Y + s.Y + pad then
-					return i, b
+	local pos = UserInputService:GetMouseLocation()
+	if input then
+		pos = Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset()
+	end
+	if TabDrag.finger then
+		pos = TabDrag.finger
+	end
+	if MainScroll and MainScroll.Parent then
+		local lp, ls = MainScroll.AbsolutePosition, MainScroll.AbsoluteSize
+		if pos.X >= lp.X - 24 and pos.X <= lp.X + ls.X + 28 then
+			local bestIndex, bestBtn, bestDist = nil, nil, math.huge
+			for i, b in ipairs(TabButtons) do
+				if b.Parent and b.Visible and b ~= TabDrag.source then
+					local p, s = b.AbsolutePosition, b.AbsoluteSize
+					local cy = p.Y + s.Y * 0.5
+					local dist = math.abs(pos.Y - cy)
+					if pos.Y >= p.Y - 12 and pos.Y <= p.Y + s.Y + 12 and dist < bestDist then
+						bestDist = dist
+						bestIndex = i
+						bestBtn = b
+					end
 				end
+			end
+			if bestBtn then
+				return bestIndex, bestBtn
 			end
 		end
 	end
@@ -1287,10 +1307,14 @@ local function placeTabGhost(source, input)
 	ghost.BorderSizePixel = 0
 	ghost.ZIndex = 800
 	ghost.Active = false
+	ghost.AnchorPoint = Vector2.new(0.5, 0.5)
 	ghost.Parent = ScreenGuiHub
 	redzlib.Elements["Corner"](ghost, UDim.new(0, 8))
 	ApplyMetallicBorder(ghost, 2.1)
-	snapGhostToSource(ghost, source)
+	local scale = getGuiScale()
+	local srcSize = source.AbsoluteSize
+	ghost.Size = UDim2.fromOffset(srcSize.X / scale, srcSize.Y / scale)
+	ghost.Position = UDim2.fromOffset(input.Position.X / scale, input.Position.Y / scale)
 
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 18, 0, 18)
@@ -1308,10 +1332,10 @@ local function placeTabGhost(source, input)
 	label.Size = UDim2.new(1, -34, 1, 0)
 	label.Position = UDim2.new(0, 31, 0, 0)
 	label.BackgroundTransparency = 1
-	label.Text = '<font family="12187367066">' .. tabName .. "</font>"
+	label.Text = '<font family="12187360881">' .. tabName .. "</font>"
 	label.RichText = true
 	label.TextColor3 = Theme["Color Text"]
-	label.Font = Enum.Font.GothamMedium
+	label.FontFace = UIFontFace
 	label.TextSize = 11
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.ZIndex = 801
@@ -1325,18 +1349,11 @@ end
 
 local function moveTabGhost(input)
 	local ghost = TabDrag.ghost
-	if not ghost or not TabDrag.dragStart or not TabDrag.startPos then
+	if not ghost then
 		return
 	end
 	local scale = getGuiScale()
-	local delta = input.Position - TabDrag.dragStart
-	local startPos = TabDrag.startPos
-	ghost.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset + (delta.X / scale),
-		startPos.Y.Scale,
-		startPos.Y.Offset + (delta.Y / scale)
-	)
+	ghost.Position = UDim2.fromOffset(input.Position.X / scale, input.Position.Y / scale)
 end
 
 local function highlightDropTarget(targetBtn)
@@ -1430,6 +1447,10 @@ local function finishTabDrag(input)
 	local source = TabDrag.source
 	local didDrag = TabDrag.dragging
 	local hoverIndex, hoverBtn = tabUnderInput(input)
+	if not hoverIndex and TabDrag.hover then
+		hoverIndex = TabDrag.hover
+		hoverBtn = TabButtons[hoverIndex]
+	end
 	if hoverBtn == source then
 		hoverIndex, hoverBtn = nil, nil
 	end
@@ -1568,9 +1589,9 @@ function CreateTab(TabName)
 		Parent = TabBtn,
 		Size = UDim2.new(1, -34, 1, 0),
 		Position = UDim2.new(0, 31, 0, 0),
-		Text = '<font family="12187367066">' .. TabName .. "</font>",
+		Text = '<font family="12187360881">' .. TabName .. "</font>",
 		TextColor3 = Theme["Color Text"],
-		Font = Enum.Font.GothamMedium,
+		FontFace = UIFontFace,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		BackgroundTransparency = 1,
@@ -1759,7 +1780,7 @@ function CreateTab(TabName)
 			AnchorPoint = Vector2.new(1, 0.5),
 			Text = tostring(default),
 			TextColor3 = Theme["Color Text"],
-			Font = Enum.Font.GothamBold,
+			FontFace = UIFontFace,
 			TextSize = 10,
 			BackgroundTransparency = 1,
 			ZIndex = 15
@@ -1824,7 +1845,7 @@ function CreateTab(TabName)
 			Text = default,
 			PlaceholderText = placeholder,
 			TextColor3 = Color3.fromRGB(255, 255, 255),
-			Font = Enum.Font.GothamBold,
+			FontFace = UIFontFace,
 			TextSize = 11,
 			ClearTextOnFocus = false,
 			ZIndex = 16
@@ -1852,7 +1873,7 @@ function CreateTab(TabName)
 			AnchorPoint = Vector2.new(1, 0.5),
 			Text = selected,
 			TextColor3 = Theme["Color Text"],
-			Font = Enum.Font.GothamBold,
+			FontFace = UIFontFace,
 			TextSize = 10,
 			BackgroundColor3 = ThemeColors.ButtonNormal,
 			BackgroundTransparency = 0.2,
@@ -1893,7 +1914,7 @@ function CreateTab(TabName)
 					BackgroundColor3 = ThemeColors.ButtonNormal,
 					AutoButtonColor = false,
 					TextColor3 = Theme["Color Text"],
-					Font = Enum.Font.GothamMedium,
+					FontFace = UIFontFace,
 					TextSize = 10,
 					ZIndex = 51
 				})
