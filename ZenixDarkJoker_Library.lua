@@ -90,7 +90,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.3.0" },
+	Info = { Version = "1.3.1" },
 	Save = { UISize = { 480, 370 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -424,12 +424,12 @@ if ScreenFind and ScreenFind ~= ScreenGuiHub then
 end
 
 local MusicIntro = Instance.new("Sound", ScreenGuiHub)
-MusicIntro.SoundId = "rbxassetid://116421368790691"
+MusicIntro.SoundId = "rbxassetid://138248399002834"
 MusicIntro.Volume = 0.5
 MusicIntro.Looped = false
 
 local MusicLoop = Instance.new("Sound", ScreenGuiHub)
-MusicLoop.SoundId = "rbxassetid://88915139965117"
+MusicLoop.SoundId = "rbxassetid://108485558387341"
 MusicLoop.Volume = 0.5
 MusicLoop.Looped = true
 
@@ -1307,14 +1307,11 @@ local function placeTabGhost(source, input)
 	ghost.BorderSizePixel = 0
 	ghost.ZIndex = 800
 	ghost.Active = false
-	ghost.AnchorPoint = Vector2.new(0.5, 0.5)
+	ghost.AnchorPoint = Vector2.new(0, 0)
 	ghost.Parent = ScreenGuiHub
 	redzlib.Elements["Corner"](ghost, UDim.new(0, 8))
 	ApplyMetallicBorder(ghost, 2.1)
-	local scale = getGuiScale()
-	local srcSize = source.AbsoluteSize
-	ghost.Size = UDim2.fromOffset(srcSize.X / scale, srcSize.Y / scale)
-	ghost.Position = UDim2.fromOffset(input.Position.X / scale, input.Position.Y / scale)
+	snapGhostToSource(ghost, source)
 
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 18, 0, 18)
@@ -1349,11 +1346,18 @@ end
 
 local function moveTabGhost(input)
 	local ghost = TabDrag.ghost
-	if not ghost then
+	if not ghost or not TabDrag.dragStart or not TabDrag.startPos then
 		return
 	end
 	local scale = getGuiScale()
-	ghost.Position = UDim2.fromOffset(input.Position.X / scale, input.Position.Y / scale)
+	local delta = input.Position - TabDrag.dragStart
+	local startPos = TabDrag.startPos
+	ghost.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + (delta.X / scale),
+		startPos.Y.Scale,
+		startPos.Y.Offset + (delta.Y / scale)
+	)
 end
 
 local function highlightDropTarget(targetBtn)
