@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local activeGradients = {}
 
 local function Tween(obj, props, time, style, dir)
@@ -88,7 +89,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.2.2" },
+	Info = { Version = "1.2.5" },
 	Save = { UISize = { 500, 390 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -624,6 +625,7 @@ ToggleButton.ScaleType = Enum.ScaleType.Fit
 ToggleButton.ZIndex = 50
 ToggleButton.Name = "ZenixToggle"
 ToggleButton.AutoButtonColor = false
+ToggleButton.Visible = false
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
 
 local dragging = false
@@ -1088,25 +1090,24 @@ local TabDrag = {
 	origin = nil,
 	hover = nil,
 	ghost = nil,
-	layer = nil,
-	inputType = nil,
+	dragInput = nil,
+	dragStart = nil,
+	startPos = nil,
 	suppress = {}
 }
 local tabShaking = {}
 
-local function getPointerScreen()
-	return UserInputService:GetMouseLocation()
-end
-
 local function getGuiScale()
 	local scaleObj = ScreenGuiHub and ScreenGuiHub:FindFirstChild("Scale")
-	return (scaleObj and scaleObj.Scale) or UIScale or 1
+	if scaleObj and scaleObj:IsA("UIScale") then
+		return scaleObj.Scale
+	end
+	return UIScale or 1
 end
 
-local function screenToHub(screenPos)
-	local scale = getGuiScale()
-	local origin = ScreenGuiHub.AbsolutePosition
-	return Vector2.new((screenPos.X - origin.X) / scale, (screenPos.Y - origin.Y) / scale)
+local function inputScreenPos(input)
+	local inset = GuiService:GetGuiInset()
+	return Vector2.new(input.Position.X + inset.X, input.Position.Y + inset.Y)
 end
 
 local function stopTabShake(btn)
@@ -1164,26 +1165,15 @@ local function swapTabs(a, b)
 	return true
 end
 
-local function tabUnderPoint(screenPos)
-	local bestIndex, bestBtn, bestDist = nil, nil, math.huge
+local function tabUnderInput(input)
+	local screenPos = inputScreenPos(input)
 	for i, b in ipairs(TabButtons) do
 		if b.Parent and b.Visible then
 			local p, s = b.AbsolutePosition, b.AbsoluteSize
 			if screenPos.X >= p.X and screenPos.X <= p.X + s.X and screenPos.Y >= p.Y and screenPos.Y <= p.Y + s.Y then
 				return i, b
 			end
-			local cx = p.X + s.X * 0.5
-			local cy = p.Y + s.Y * 0.5
-			local dist = (Vector2.new(cx, cy) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-			if dist < bestDist then
-				bestDist = dist
-				bestIndex = i
-				bestBtn = b
-			end
 		end
-	end
-	if bestBtn and bestDist <= 42 then
-		return bestIndex, bestBtn
 	end
 end
 
@@ -1192,44 +1182,44 @@ local function destroyTabGhost()
 		TabDrag.ghost:Destroy()
 		TabDrag.ghost = nil
 	end
-	if TabDrag.layer then
-		TabDrag.layer:Destroy()
-		TabDrag.layer = nil
+end
+
+local function snapGhostToSource(ghost, source)
+	local scale = getGuiScale()
+	local parent = ghost.Parent
+	if not parent then
+		return
+	end
+	local srcPos = source.AbsolutePosition
+	local srcSize = source.AbsoluteSize
+	local parentPos = parent.AbsolutePosition
+	ghost.AnchorPoint = Vector2.new(0, 0)
+	ghost.Size = UDim2.fromOffset(srcSize.X / scale, srcSize.Y / scale)
+	ghost.Position = UDim2.fromOffset((srcPos.X - parentPos.X) / scale, (srcPos.Y - parentPos.Y) / scale)
+	local err = source.AbsolutePosition - ghost.AbsolutePosition
+	if err.Magnitude > 0.25 then
+		ghost.Position = UDim2.fromOffset(
+			ghost.Position.X.Offset + (err.X / scale),
+			ghost.Position.Y.Offset + (err.Y / scale)
+		)
 	end
 end
 
-local function placeTabGhost(source)
+local function placeTabGhost(source, input)
 	destroyTabGhost()
-	local scale = getGuiScale()
-	local absSize = source.AbsoluteSize
-	local pointer = getPointerScreen()
-	local guiPos = screenToHub(pointer)
 	local tabName = source:GetAttribute("TabName") or "Tab"
-
-	local layer = Instance.new("Frame")
-	layer.Name = "TabDragLayer"
-	layer.BackgroundTransparency = 1
-	layer.BorderSizePixel = 0
-	layer.Size = UDim2.fromScale(1, 1)
-	layer.Position = UDim2.fromScale(0, 0)
-	layer.ZIndex = 500
-	layer.Active = false
-	layer.Parent = ScreenGuiHub
-	TabDrag.layer = layer
 
 	local ghost = Instance.new("Frame")
 	ghost.Name = "TabDragGhost"
-	ghost.AnchorPoint = Vector2.new(0.5, 0.5)
-	ghost.Size = UDim2.fromOffset(math.max(absSize.X / scale, 90), math.max(absSize.Y / scale, 26))
-	ghost.Position = UDim2.fromOffset(guiPos.X, guiPos.Y)
 	ghost.BackgroundColor3 = ThemeColors.ButtonNormal
-	ghost.BackgroundTransparency = 0.05
+	ghost.BackgroundTransparency = 0.04
 	ghost.BorderSizePixel = 0
-	ghost.ZIndex = 501
+	ghost.ZIndex = 800
 	ghost.Active = false
-	ghost.Parent = layer
+	ghost.Parent = ScreenGuiHub
 	redzlib.Elements["Corner"](ghost, UDim.new(0, 8))
 	ApplyMetallicBorder(ghost, 2.1)
+	snapGhostToSource(ghost, source)
 
 	local icon = Instance.new("ImageLabel")
 	icon.Size = UDim2.new(0, 18, 0, 18)
@@ -1238,7 +1228,7 @@ local function placeTabGhost(source)
 	icon.BackgroundTransparency = 1
 	icon.Image = "rbxthumb://type=Asset&id=76809797628298&w=420&h=420"
 	icon.ScaleType = Enum.ScaleType.Crop
-	icon.ZIndex = 502
+	icon.ZIndex = 801
 	icon.Parent = ghost
 	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
 
@@ -1253,23 +1243,29 @@ local function placeTabGhost(source)
 	label.Font = Enum.Font.GothamMedium
 	label.TextSize = 11
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.ZIndex = 502
+	label.ZIndex = 801
 	label.Parent = ghost
 
-	local lift = Instance.new("UIScale")
-	lift.Scale = 1.08
-	lift.Parent = ghost
-
 	TabDrag.ghost = ghost
+	TabDrag.startPos = ghost.Position
+	TabDrag.dragStart = input.Position
+	TabDrag.dragInput = input
 end
 
-local function moveTabGhost()
+local function moveTabGhost(input)
 	local ghost = TabDrag.ghost
-	if not ghost then
+	if not ghost or not TabDrag.dragStart or not TabDrag.startPos then
 		return
 	end
-	local guiPos = screenToHub(getPointerScreen())
-	ghost.Position = UDim2.fromOffset(guiPos.X, guiPos.Y)
+	local scale = getGuiScale()
+	local delta = input.Position - TabDrag.dragStart
+	local startPos = TabDrag.startPos
+	ghost.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + (delta.X / scale),
+		startPos.Y.Scale,
+		startPos.Y.Offset + (delta.Y / scale)
+	)
 end
 
 local function highlightDropTarget(targetBtn)
@@ -1316,34 +1312,7 @@ local function resetTabVisuals()
 	end
 end
 
-local function finishTabDrag()
-	if not TabDrag.holding then
-		return
-	end
-	local source = TabDrag.source
-	local didDrag = TabDrag.dragging
-	local pointer = getPointerScreen()
-	local hoverIndex = TabDrag.hover
-	local hoverBtn
-	hoverIndex, hoverBtn = tabUnderPoint(pointer)
-	local fromIndex = indexOfTab(source)
-
-	destroyTabGhost()
-
-	if didDrag and source then
-		TabDrag.suppress[source] = true
-		if hoverBtn == source then
-			hoverIndex = nil
-		end
-		if hoverIndex and fromIndex and hoverIndex ~= fromIndex then
-			swapTabs(fromIndex, hoverIndex)
-		end
-		task.delay(0.18, function()
-			TabDrag.suppress[source] = false
-		end)
-	end
-
-	resetTabVisuals()
+local function clearTabDragState()
 	if MainScroll then
 		MainScroll.ScrollingEnabled = true
 	end
@@ -1353,7 +1322,72 @@ local function finishTabDrag()
 	TabDrag.source = nil
 	TabDrag.origin = nil
 	TabDrag.hover = nil
-	TabDrag.inputType = nil
+	TabDrag.dragInput = nil
+	TabDrag.dragStart = nil
+	TabDrag.startPos = nil
+end
+
+local function returnGhostHome(source, done)
+	local ghost = TabDrag.ghost
+	if not ghost or not ghost.Parent or not source or not source.Parent then
+		destroyTabGhost()
+		if done then
+			done()
+		end
+		return
+	end
+	local scale = getGuiScale()
+	local parentPos = ghost.Parent.AbsolutePosition
+	local dest = UDim2.fromOffset(
+		(source.AbsolutePosition.X - parentPos.X) / scale,
+		(source.AbsolutePosition.Y - parentPos.Y) / scale
+	)
+	local tw = Tween(ghost, { Position = dest, BackgroundTransparency = 0.35 }, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	tw.Completed:Connect(function()
+		destroyTabGhost()
+		if done then
+			done()
+		end
+	end)
+end
+
+local function finishTabDrag(input)
+	if not TabDrag.holding then
+		return
+	end
+	local source = TabDrag.source
+	local didDrag = TabDrag.dragging
+	local hoverIndex, hoverBtn = nil, nil
+	if input then
+		hoverIndex, hoverBtn = tabUnderInput(input)
+	end
+	if hoverBtn == source then
+		hoverIndex, hoverBtn = nil, nil
+	end
+	local fromIndex = indexOfTab(source)
+
+	local function finishReset()
+		resetTabVisuals()
+		clearTabDragState()
+	end
+
+	if didDrag and source then
+		TabDrag.suppress[source] = true
+		task.delay(0.2, function()
+			TabDrag.suppress[source] = false
+		end)
+		if hoverIndex and fromIndex and hoverIndex ~= fromIndex then
+			destroyTabGhost()
+			swapTabs(fromIndex, hoverIndex)
+			finishReset()
+			return
+		end
+		returnGhostHome(source, finishReset)
+		return
+	end
+
+	destroyTabGhost()
+	finishReset()
 end
 
 local function beginTabDrag(btn, input)
@@ -1366,9 +1400,9 @@ local function beginTabDrag(btn, input)
 	TabDrag.holding = true
 	TabDrag.dragging = false
 	TabDrag.source = btn
-	TabDrag.origin = getPointerScreen()
+	TabDrag.origin = input.Position
+	TabDrag.dragInput = input
 	TabDrag.hover = indexOfTab(btn)
-	TabDrag.inputType = input.UserInputType
 	WindowDraggingBlocked = true
 end
 
@@ -1379,21 +1413,23 @@ UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-	local pointer = getPointerScreen()
+	if TabDrag.dragInput and input ~= TabDrag.dragInput and input.UserInputType ~= Enum.UserInputType.MouseMovement then
+		return
+	end
 	if not TabDrag.dragging then
-		if (pointer - TabDrag.origin).Magnitude < 10 then
+		if (input.Position - TabDrag.origin).Magnitude < 8 then
 			return
 		end
 		TabDrag.dragging = true
 		if MainScroll then
 			MainScroll.ScrollingEnabled = false
 		end
-		placeTabGhost(TabDrag.source)
+		placeTabGhost(TabDrag.source, input)
 		Tween(TabDrag.source, { BackgroundTransparency = 0.62 }, 0.12)
 	end
-	moveTabGhost()
-	autoScrollTabs(pointer)
-	local hoverIndex, hoverBtn = tabUnderPoint(pointer)
+	moveTabGhost(input)
+	autoScrollTabs(inputScreenPos(input))
+	local hoverIndex, hoverBtn = tabUnderInput(input)
 	if hoverBtn == TabDrag.source then
 		hoverIndex, hoverBtn = nil, nil
 	end
@@ -1406,7 +1442,7 @@ UserInputService.InputEnded:Connect(function(input)
 		return
 	end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		finishTabDrag()
+		finishTabDrag(input)
 	end
 end)
 
@@ -1827,7 +1863,15 @@ function CreateTab(TabName)
 	return Tab
 end
 
+local HubSequenceReady = false
+local WantShowHub = false
+
 local function ShowMainHub()
+	if not HubSequenceReady then
+		WantShowHub = true
+		return
+	end
+	ToggleButton.Visible = true
 	MainHubFrame.Visible = true
 	PlayMusic()
 	CreateNotification("نورت السكربت يا غالي", 5)
@@ -1867,63 +1911,46 @@ local function loadScript(url, callback)
 	end)
 end
 
+local function waitForChildTimeout(parent, name, timeout)
+	local t = 0
+	local obj = parent and parent:FindFirstChild(name)
+	while not obj and t < timeout do
+		task.wait(0.1)
+		t = t + 0.1
+		obj = parent and parent:FindFirstChild(name)
+	end
+	return obj
+end
+
+local function waitUntilGone(inst, timeout)
+	local t = 0
+	while inst and inst.Parent and t < timeout do
+		task.wait(0.1)
+		t = t + 0.1
+	end
+end
+
 task.spawn(function()
+	ToggleButton.Visible = false
+	MainHubFrame.Visible = false
+
 	loadScript("https://raw.githubusercontent.com/Zenix-V-I-X/entro/refs/heads/main/entro")
-	task.wait(3)
 
 	local introPlayerGui = Player:FindFirstChild("PlayerGui") or playerGui
-	local introGui = introPlayerGui and introPlayerGui:FindFirstChild("ZenixIntroGui")
-	if not introGui and introPlayerGui then
-		for _ = 1, 25 do
-			task.wait(0.2)
-			introGui = introPlayerGui:FindFirstChild("ZenixIntroGui")
-			if introGui then
-				break
-			end
-		end
-	end
+	local introGui = waitForChildTimeout(introPlayerGui, "ZenixIntroGui", 12)
 
-	local opened = false
-	local function openHub()
-		if opened then
-			return
-		end
-		opened = true
-		ShowMainHub()
-	end
-
-	local playButton = nil
 	if introGui then
-		local background = introGui:FindFirstChild("Background")
-		if background then
-			local buttonContainer = background:FindFirstChild("ButtonContainer")
-			if buttonContainer then
-				for _, child in ipairs(buttonContainer:GetChildren()) do
-					if child:IsA("TextButton") then
-						local textLabel = child:FindFirstChild("TextLabel")
-						if textLabel and textLabel.Text == "العب" then
-							playButton = child
-							break
-						end
-					end
-				end
-			end
-		end
+		waitUntilGone(introGui, 90)
+		task.wait(0.35)
+	else
+		task.wait(1)
 	end
 
-	if playButton then
-		playButton.MouseButton1Click:Connect(function()
-			task.spawn(function()
-				task.wait(2.5)
-				loadScript("https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/al9ab%20fo9%20ras")
-				task.wait(0.15)
-				openHub()
-			end)
-		end)
-		task.delay(60, openHub)
-	else
-		openHub()
-	end
+	loadScript("https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/al9ab%20fo9%20ras")
+	task.wait(0.8)
+
+	HubSequenceReady = true
+	ShowMainHub()
 end)
 
 local Library = {
