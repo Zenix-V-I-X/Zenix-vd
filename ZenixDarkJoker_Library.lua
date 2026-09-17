@@ -90,7 +90,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
 		}
 	},
-	Info = { Version = "1.3.1" },
+	Info = { Version = "1.3.2" },
 	Save = { UISize = { 480, 370 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -1221,49 +1221,53 @@ local function tabFromGuiObject(obj)
 	end
 end
 
+local function currentFinger(input)
+	if input then
+		return Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset()
+	end
+	return UserInputService:GetMouseLocation()
+end
+
 local function tabUnderInput(input)
-	for _, pos in ipairs(fingerPoints(input)) do
-		local ok, objs = pcall(function()
-			return playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
-		end)
-		if ok and objs then
-			for _, obj in ipairs(objs) do
-				if not isGhostObject(obj) then
-					local index, btn = tabFromGuiObject(obj)
-					if btn and btn ~= TabDrag.source then
-						return index, btn
-					end
-				end
-			end
-		end
+	if not MainScroll or not MainScroll.Parent then
+		return
+	end
+	local pos = currentFinger(input)
+	local lp, ls = MainScroll.AbsolutePosition, MainScroll.AbsoluteSize
+	if pos.X < lp.X - 20 or pos.X > lp.X + ls.X + 24 then
+		return
 	end
 
-	local pos = UserInputService:GetMouseLocation()
-	if input then
-		pos = Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset()
+	local slots = {}
+	for i, b in ipairs(TabButtons) do
+		if b.Parent and b.Visible then
+			table.insert(slots, {
+				index = i,
+				btn = b,
+				top = b.AbsolutePosition.Y,
+				height = b.AbsoluteSize.Y
+			})
+		end
 	end
-	if TabDrag.finger then
-		pos = TabDrag.finger
+	table.sort(slots, function(a, b)
+		return a.top < b.top
+	end)
+	if #slots == 0 then
+		return
 	end
-	if MainScroll and MainScroll.Parent then
-		local lp, ls = MainScroll.AbsolutePosition, MainScroll.AbsoluteSize
-		if pos.X >= lp.X - 24 and pos.X <= lp.X + ls.X + 28 then
-			local bestIndex, bestBtn, bestDist = nil, nil, math.huge
-			for i, b in ipairs(TabButtons) do
-				if b.Parent and b.Visible and b ~= TabDrag.source then
-					local p, s = b.AbsolutePosition, b.AbsoluteSize
-					local cy = p.Y + s.Y * 0.5
-					local dist = math.abs(pos.Y - cy)
-					if pos.Y >= p.Y - 12 and pos.Y <= p.Y + s.Y + 12 and dist < bestDist then
-						bestDist = dist
-						bestIndex = i
-						bestBtn = b
-					end
-				end
+
+	for i, slot in ipairs(slots) do
+		local bottom
+		if slots[i + 1] then
+			bottom = slots[i + 1].top
+		else
+			bottom = slot.top + slot.height + 10
+		end
+		if pos.Y >= slot.top and pos.Y < bottom then
+			if slot.btn ~= TabDrag.source then
+				return slot.index, slot.btn
 			end
-			if bestBtn then
-				return bestIndex, bestBtn
-			end
+			return
 		end
 	end
 end
@@ -1451,10 +1455,6 @@ local function finishTabDrag(input)
 	local source = TabDrag.source
 	local didDrag = TabDrag.dragging
 	local hoverIndex, hoverBtn = tabUnderInput(input)
-	if not hoverIndex and TabDrag.hover then
-		hoverIndex = TabDrag.hover
-		hoverBtn = TabButtons[hoverIndex]
-	end
 	if hoverBtn == source then
 		hoverIndex, hoverBtn = nil, nil
 	end
