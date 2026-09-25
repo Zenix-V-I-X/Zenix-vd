@@ -93,7 +93,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(22, 0, 45)
 		}
 	},
-	Info = { Version = "1.0.0" },
+	Info = { Version = "1.0.1" },
 	Save = { UISize = { 550, 380 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -619,15 +619,16 @@ local Components = Create("Frame", MainHubFrame, {
 
 local Stroke = Create("UIStroke", MainHubFrame, {
 	Color = Color3.fromRGB(255, 255, 255),
-	Thickness = 2.5,
+	Thickness = 2.4,
 	ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 })
 
 local StrokeGradient = Create("UIGradient", Stroke, {
 	Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.35, Color3.fromRGB(150, 0, 255)),
+		ColorSequenceKeypoint.new(0.65, Color3.fromRGB(150, 0, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
 	}),
 	Rotation = 0
 })
@@ -1573,7 +1574,22 @@ local function SetTabActive(btn, on)
 	end
 end
 
+local function ReadConfig(Configs, ...)
+	if type(Configs) ~= "table" then
+		return Configs
+	end
+	for _, key in ipairs({ ... }) do
+		if Configs[key] ~= nil then
+			return Configs[key]
+		end
+	end
+end
+
 function CreateTab(TabName)
+	if type(TabName) == "table" then
+		TabName = TabName.Title or TabName.Name or TabName[1] or "Tab"
+	end
+	TabName = tostring(TabName or "Tab")
 	local TabBtn = Create("TextButton", {
 		Parent = MainScroll,
 		Size = UDim2.new(1, 0, 0, 26),
@@ -1690,9 +1706,13 @@ function CreateTab(TabName)
 	local Tab = {}
 
 	function Tab:AddButton(Configs)
-		local name = Configs[1] or "Button"
-		local cb = Configs.Callback or Configs[2] or function() end
-		local btn = ButtonFrame(Page, name, Configs.Desc or Configs.Description, UDim2.new(1, -36))
+		Configs = Configs or {}
+		local name = ReadConfig(Configs, "Title", "Name", 1) or "Button"
+		local cb = ReadConfig(Configs, "Callback", 2)
+		if type(cb) ~= "function" then
+			cb = function() end
+		end
+		local btn = ButtonFrame(Page, name, ReadConfig(Configs, "Desc", "Description"), UDim2.new(1, -36))
 		local arrow = Create("TextLabel", btn, {
 			Size = UDim2.new(0, 14, 0, 14),
 			Position = UDim2.new(1, -12, 0.5, 0),
@@ -1717,17 +1737,24 @@ function CreateTab(TabName)
 	end
 
 	function Tab:AddToggle(Configs)
-		local name = Configs[1] or "Toggle"
-		local default = Configs[2] or false
-		local cb = Configs.Callback or Configs[3] or function() end
-		local frame = ButtonFrame(Page, name, nil, UDim2.new(1, -50))
+		Configs = Configs or {}
+		local name = ReadConfig(Configs, "Title", "Name", 1) or "Toggle"
+		local default = ReadConfig(Configs, "Default", 2)
+		if default == nil then
+			default = false
+		end
+		local cb = ReadConfig(Configs, "Callback", 3)
+		if type(cb) ~= "function" then
+			cb = function() end
+		end
+		local frame = ButtonFrame(Page, name, ReadConfig(Configs, "Desc", "Description"), UDim2.new(1, -50))
 
 		local toggle = Create("Frame", {
 			Parent = frame,
 			Size = UDim2.new(0, 32, 0, 16),
 			Position = UDim2.new(1, -10, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			BackgroundColor3 = default and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(50, 50, 50),
+			BackgroundColor3 = default and Color3.fromRGB(150, 0, 255) or Color3.fromRGB(40, 20, 55),
 			ZIndex = 15
 		})
 		redzlib.Elements["Corner"](toggle, UDim.new(1, 0))
@@ -1746,7 +1773,7 @@ function CreateTab(TabName)
 		local state = default
 		local function set(v)
 			state = v
-			Tween(toggle, { BackgroundColor3 = state and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(50, 50, 50) }, 0.18)
+			Tween(toggle, { BackgroundColor3 = state and Color3.fromRGB(150, 0, 255) or Color3.fromRGB(40, 20, 55) }, 0.18)
 			dot:TweenPosition(state and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0), "Out", "Quart", 0.2, true)
 			Tween(dot, { BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(255, 255, 255) }, 0.18)
 		end
@@ -1761,11 +1788,15 @@ function CreateTab(TabName)
 	end
 
 	function Tab:AddSlider(Configs)
-		local name = Configs[1] or "Slider"
-		local min = Configs[2] or 1
-		local max = Configs[3] or 100
-		local default = Configs[5] or 25
-		local cb = Configs.Callback or Configs[6] or function() end
+		Configs = Configs or {}
+		local name = ReadConfig(Configs, "Title", "Name", 1) or "Slider"
+		local min = ReadConfig(Configs, "Min", 2) or 1
+		local max = ReadConfig(Configs, "Max", 3) or 100
+		local default = ReadConfig(Configs, "Default", 5, 4) or min
+		local cb = ReadConfig(Configs, "Callback", 6)
+		if type(cb) ~= "function" then
+			cb = function() end
+		end
 
 		local btn = ButtonFrame(Page, name, nil, UDim2.new(1, -180))
 
@@ -1845,10 +1876,14 @@ function CreateTab(TabName)
 	end
 
 	function Tab:AddTextBox(Configs)
-		local name = Configs[1] or "Text Box"
-		local default = Configs[2] or ""
-		local placeholder = Configs.Placeholder or "اكتب هنا..."
-		local cb = Configs.Callback or Configs[4] or function() end
+		Configs = Configs or {}
+		local name = ReadConfig(Configs, "Title", "Name", 1) or "Text Box"
+		local default = ReadConfig(Configs, "Default", 2) or ""
+		local placeholder = ReadConfig(Configs, "Placeholder", "PlaceholderText") or "اكتب هنا..."
+		local cb = ReadConfig(Configs, "Callback", 4)
+		if type(cb) ~= "function" then
+			cb = function() end
+		end
 
 		local btn = ButtonFrame(Page, name, nil, UDim2.new(1, -38))
 		local boxFrame = Create("Frame", {
@@ -1886,10 +1921,14 @@ function CreateTab(TabName)
 	end
 
 	function Tab:AddDropdown(Configs)
-		local title = Configs.Title or "Dropdown"
-		local options = Configs.Options or {}
-		local cb = Configs.Callback or function() end
-		local selected = options[1] or ""
+		Configs = Configs or {}
+		local title = ReadConfig(Configs, "Title", "Name", 1) or "Dropdown"
+		local options = ReadConfig(Configs, "Options", 2) or {}
+		local cb = ReadConfig(Configs, "Callback", 3)
+		if type(cb) ~= "function" then
+			cb = function() end
+		end
+		local selected = ReadConfig(Configs, "Default") or options[1] or ""
 
 		local btn = ButtonFrame(Page, title, nil, UDim2.new(1, -80))
 		local valueLabel = Create("TextLabel", {
@@ -1976,6 +2015,47 @@ function CreateTab(TabName)
 		end
 		return dropdownObj
 	end
+
+	function Tab:AddSection(Configs)
+		Configs = Configs or {}
+		if type(Configs) == "string" then
+			Configs = { Title = Configs }
+		end
+		local name = ReadConfig(Configs, "Title", "Name", 1) or "Section"
+		local holder = Create("Frame", Page, {
+			Size = UDim2.new(1, -20, 0, 22),
+			BackgroundTransparency = 1,
+			ZIndex = 14
+		})
+		local label = Create("TextLabel", holder, {
+			Size = UDim2.new(1, 0, 1, 0),
+			BackgroundTransparency = 1,
+			Text = tostring(name),
+			TextColor3 = Color3.fromRGB(230, 210, 255),
+			FontFace = UIFontFace,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 15
+		})
+		return holder
+	end
+
+	function Tab:AddParagraph(Configs)
+		Configs = Configs or {}
+		local title = ReadConfig(Configs, "Title", "Name", 1) or "Paragraph"
+		local text = ReadConfig(Configs, "Text", "Content", 2) or ""
+		local frame = ButtonFrame(Page, title, text, UDim2.new(1, -16))
+		frame.Active = false
+		return frame
+	end
+
+	Tab.Button = Tab.AddButton
+	Tab.Toggle = Tab.AddToggle
+	Tab.Slider = Tab.AddSlider
+	Tab.TextBox = Tab.AddTextBox
+	Tab.Dropdown = Tab.AddDropdown
+	Tab.Section = Tab.AddSection
+	Tab.Paragraph = Tab.AddParagraph
 
 	return Tab
 end
