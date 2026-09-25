@@ -1,0 +1,2014 @@
+local ThemeColors = {
+	DeepBlack = Color3.fromRGB(10, 0, 30),
+	DarkPanel = Color3.fromRGB(18, 0, 40),
+	ButtonNormal = Color3.fromRGB(28, 0, 55),
+	ButtonHover = Color3.fromRGB(70, 0, 120),
+	ButtonPress = Color3.fromRGB(20, 0, 40),
+	MidGray = Color3.fromRGB(150, 0, 255),
+	LightGray = Color3.fromRGB(210, 180, 255),
+	PureWhite = Color3.fromRGB(255, 255, 255),
+	SoftWhite = Color3.fromRGB(230, 210, 255),
+	Abyss = Color3.fromRGB(30, 0, 60),
+	Toxic = Color3.fromRGB(150, 0, 255),
+	Deep = Color3.fromRGB(10, 0, 30)
+}
+
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local UIFontFace = Font.new("rbxassetid://12187360881")
+local activeGradients = {}
+
+local function Tween(obj, props, time, style, dir)
+	local tw = TweenService:Create(
+		obj,
+		TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out),
+		props
+	)
+	tw:Play()
+	return tw
+end
+
+local function ApplyMetallicBorder(parentElement, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = ThemeColors.PureWhite
+	stroke.Thickness = thickness or 2.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.LineJoinMode = Enum.LineJoinMode.Round
+	stroke.Parent = parentElement
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, ThemeColors.PureWhite),
+		ColorSequenceKeypoint.new(0.25, ThemeColors.Toxic),
+		ColorSequenceKeypoint.new(0.5, ThemeColors.Abyss),
+		ColorSequenceKeypoint.new(0.75, ThemeColors.Toxic),
+		ColorSequenceKeypoint.new(1, ThemeColors.PureWhite)
+	})
+	gradient.Rotation = math.random(0, 359)
+	gradient.Parent = stroke
+	table.insert(activeGradients, gradient)
+	return stroke, gradient
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	for i = #activeGradients, 1, -1 do
+		local gradient = activeGradients[i]
+		if gradient and gradient.Parent then
+			gradient.Rotation = (gradient.Rotation + (100 * dt)) % 360
+		else
+			table.remove(activeGradients, i)
+		end
+	end
+end)
+
+local Player = Players.LocalPlayer
+if not Player then
+	Players.PlayerAdded:Wait()
+	Player = Players.LocalPlayer
+end
+local playerGui = Player:WaitForChild("PlayerGui")
+local MainHubFrame, ScreenGuiHub
+
+if playerGui:FindFirstChild("AvariceLibrary_Gui") then
+	playerGui.AvariceLibrary_Gui:Destroy()
+end
+
+local redzlib = {
+	Themes = {
+		Dark = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 0, 0)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(30, 0, 60)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(150, 0, 255))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(0, 0, 0),
+			["Color Stroke"] = Color3.fromRGB(200, 140, 255),
+			["Color Theme"] = Color3.fromRGB(0, 0, 0),
+			["Color Text"] = Color3.fromRGB(255, 255, 255),
+			["Color Dark Text"] = Color3.fromRGB(210, 180, 255),
+			["Color Button"] = Color3.fromRGB(28, 0, 55),
+			["Color TextBox"] = Color3.fromRGB(22, 0, 45)
+		}
+	},
+	Info = { Version = "1.0.0" },
+	Save = { UISize = { 550, 380 }, TabSize = 160, Theme = "Dark" }
+}
+
+local ViewportSize = workspace.CurrentCamera.ViewportSize
+local UIScale = ViewportSize.Y / 450
+local Theme = redzlib.Themes[redzlib.Save.Theme]
+
+local function SetProps(Instance, Props)
+	if Props then
+		for prop, value in Props do
+			Instance[prop] = value
+		end
+	end
+	return Instance
+end
+
+local function SetChildren(Instance, Children)
+	if Children then
+		for _, Child in Children do
+			Child.Parent = Instance
+		end
+	end
+	return Instance
+end
+
+local function Create(Class, ...)
+	local args = { ... }
+	local new = Instance.new(Class)
+	if type(args[1]) == "table" then
+		SetProps(new, args[1])
+		SetChildren(new, args[2])
+	elseif typeof(args[1]) == "Instance" then
+		new.Parent = args[1]
+		SetProps(new, args[2])
+		SetChildren(new, args[3])
+	end
+	return new
+end
+
+local WindowDraggingBlocked = false
+
+local function MakeDrag(handle, target)
+	target = target or handle
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	handle.InputBegan:Connect(function(input)
+		if WindowDraggingBlocked then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = target.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if WindowDraggingBlocked then
+			dragging = false
+			return
+		end
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			target.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + (delta.X / UIScale),
+				startPos.Y.Scale,
+				startPos.Y.Offset + (delta.Y / UIScale)
+			)
+		end
+	end)
+	return handle
+end
+
+local function StyleInteractive(frame)
+	frame.BackgroundColor3 = ThemeColors.ButtonNormal
+	if frame:IsA("GuiButton") then
+		frame.AutoButtonColor = false
+	end
+	local hovering = false
+	frame.MouseEnter:Connect(function()
+		hovering = true
+		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonHover }, 0.16)
+	end)
+	frame.MouseLeave:Connect(function()
+		hovering = false
+		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonNormal }, 0.16)
+	end)
+	if frame:IsA("GuiButton") then
+		frame.MouseButton1Down:Connect(function()
+			Tween(frame, { BackgroundColor3 = ThemeColors.ButtonPress }, 0.08)
+		end)
+		frame.MouseButton1Up:Connect(function()
+			Tween(frame, { BackgroundColor3 = hovering and ThemeColors.ButtonHover or ThemeColors.ButtonNormal }, 0.12)
+		end)
+	end
+end
+
+redzlib.Elements = {}
+redzlib.Elements["Corner"] = function(parent, CornerRadius)
+	return Create("UICorner", parent, { CornerRadius = CornerRadius or UDim.new(0, 15) })
+end
+redzlib.Elements["Gradient"] = function(parent, props)
+	return Create("UIGradient", parent, { Color = Theme["Color Hub 1"] })
+end
+
+local function CreateTween(config)
+	local tween = TweenService:Create(config[1], TweenInfo.new(config[4] or 0.5, Enum.EasingStyle.Quint), { [config[2]] = config[3] })
+	tween:Play()
+	if config[5] then
+		tween.Completed:Wait()
+	end
+	return tween
+end
+
+local function ButtonFrame(Container, Title, Description, HolderSize)
+	local TitleL = Create("TextLabel", {
+		FontFace = UIFontFace,
+		TextColor3 = Theme["Color Text"],
+		Size = UDim2.new(1, -20),
+		AutomaticSize = "Y",
+		Position = UDim2.new(0, 0, 0.5),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundTransparency = 1,
+		TextTruncate = "AtEnd",
+		TextSize = 11,
+		TextXAlignment = "Left",
+		Text = "",
+		RichText = true,
+		ZIndex = 15
+	})
+	local DescL = Create("TextLabel", {
+		FontFace = UIFontFace,
+		TextColor3 = Theme["Color Dark Text"],
+		Size = UDim2.new(1, -20),
+		AutomaticSize = "Y",
+		Position = UDim2.new(0, 12, 0, 15),
+		BackgroundTransparency = 1,
+		TextWrapped = true,
+		TextTransparency = 0.28,
+		TextSize = 11,
+		TextXAlignment = "Left",
+		Text = "",
+		RichText = true,
+		ZIndex = 15
+	})
+	local Frame = Create("TextButton", Container, {
+		Size = UDim2.new(1, -20, 0, 32),
+		AutomaticSize = "Y",
+		Name = "Option",
+		Text = "",
+		BackgroundColor3 = ThemeColors.ButtonNormal,
+		AutoButtonColor = false,
+		ZIndex = 14
+	})
+	redzlib.Elements["Corner"](Frame, UDim.new(0, 8))
+	ApplyMetallicBorder(Frame, 2.1)
+
+	local inner = Instance.new("Frame")
+	inner.Name = "JooInner"
+	inner.Size = UDim2.new(1, -2, 0, 1)
+	inner.Position = UDim2.new(0, 1, 0, 1)
+	inner.BackgroundColor3 = ThemeColors.PureWhite
+	inner.BackgroundTransparency = 0.82
+	inner.BorderSizePixel = 0
+	inner.ZIndex = 15
+	inner.Parent = Frame
+
+	StyleInteractive(Frame)
+
+	local LabelHolder = Create("Frame", Frame, {
+		AutomaticSize = "Y",
+		BackgroundTransparency = 1,
+		Size = HolderSize,
+		Position = UDim2.new(0, 10, 0),
+		AnchorPoint = Vector2.new(0, 0),
+		ZIndex = 15
+	}, {
+		Create("UIListLayout", { SortOrder = "LayoutOrder", VerticalAlignment = "Center", Padding = UDim.new(0, 2) }),
+		Create("UIPadding", { PaddingBottom = UDim.new(0, 6), PaddingTop = UDim.new(0, 6) }),
+		TitleL,
+		DescL
+	})
+
+	local Label = {}
+	function Label:SetTitle(t)
+		if type(t) == "string" and t:gsub(" ", ""):len() > 0 then
+			TitleL.Text = '<font family="12187360881">' .. t .. "</font>"
+		end
+	end
+	function Label:SetDesc(d)
+		if type(d) == "string" and d:gsub(" ", ""):len() > 0 then
+			DescL.Text = d
+			DescL.Visible = true
+			DescL.TextTransparency = 0.28
+			LabelHolder.Position = UDim2.new(0, 10, 0)
+			LabelHolder.AnchorPoint = Vector2.new(0, 0)
+		else
+			DescL.Visible = false
+			DescL.Text = ""
+			LabelHolder.Position = UDim2.new(0, 10, 0.5)
+			LabelHolder.AnchorPoint = Vector2.new(0, 0.5)
+		end
+	end
+	Label:SetTitle(Title)
+	Label:SetDesc(Description)
+	return Frame, Label
+end
+
+local activeNotifications = {}
+function CreateNotification(text, duration)
+	local title = "AVARICE"
+	duration = duration or 6
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AvariceNotify_" .. tick()
+	gui.Parent = playerGui
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 285, 0, 75)
+	frame.Position = UDim2.new(1, 10, 0, 10)
+	frame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+	frame.BorderSizePixel = 0
+	frame.ClipsDescendants = true
+	frame.ZIndex = 100
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+	ApplyMetallicBorder(frame, 1.6)
+	frame.Parent = gui
+
+	local topBorder = Instance.new("Frame")
+	topBorder.Size = UDim2.new(1, 0, 0, 2)
+	topBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	topBorder.BorderSizePixel = 0
+	topBorder.ZIndex = 101
+	topBorder.Parent = frame
+
+	local progressBar = Instance.new("Frame")
+	progressBar.Size = UDim2.new(1, 0, 0, 3)
+	progressBar.Position = UDim2.new(0, 0, 1, -3)
+	progressBar.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+	progressBar.BorderSizePixel = 0
+	progressBar.ZIndex = 101
+	progressBar.Parent = frame
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -16, 0, 24)
+	titleLabel.Position = UDim2.new(0, 8, 0, 6)
+	titleLabel.Text = title
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.TextSize = 13
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.FontFace = UIFontFace
+	titleLabel.ZIndex = 101
+	titleLabel.Parent = frame
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, -16, 0, 22)
+	textLabel.Position = UDim2.new(0, 8, 0, 32)
+	textLabel.Text = text
+	textLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	textLabel.TextSize = 11
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.TextWrapped = true
+	textLabel.BackgroundTransparency = 1
+	textLabel.FontFace = UIFontFace
+	textLabel.ZIndex = 101
+	textLabel.Parent = frame
+
+	task.spawn(function()
+		local startTime = tick()
+		while tick() - startTime < duration and frame.Parent do
+			progressBar.Size = UDim2.new(1 - (tick() - startTime) / duration, 0, 0, 3)
+			task.wait()
+		end
+	end)
+
+	local function RepositionNotifications()
+		local yOffset = 10
+		for i, notif in ipairs(activeNotifications) do
+			if notif.frame and notif.frame.Parent then
+				notif.frame:TweenPosition(UDim2.new(1, -295, 0, yOffset), "Out", "Quad", 0.3, true)
+				yOffset = yOffset + 85
+			end
+		end
+	end
+
+	table.insert(activeNotifications, { frame = frame, gui = gui })
+	RepositionNotifications()
+
+	task.delay(duration, function()
+		if frame.Parent then
+			local targetPos = UDim2.new(1, 20, 0, frame.Position.Y.Offset)
+			frame:TweenPosition(targetPos, "In", "Back", 0.4, true)
+			task.wait(0.4)
+			gui:Destroy()
+		end
+		for i, notif in ipairs(activeNotifications) do
+			if notif.frame == frame then
+				table.remove(activeNotifications, i)
+				break
+			end
+		end
+		RepositionNotifications()
+	end)
+end
+
+ScreenGuiHub = Create("ScreenGui", playerGui, {
+	Name = "AvariceLibrary_Gui",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+}, { Create("UIScale", { Scale = UIScale, Name = "Scale" }) })
+
+local ScreenFind = playerGui:FindFirstChild(ScreenGuiHub.Name)
+if ScreenFind and ScreenFind ~= ScreenGuiHub then
+	ScreenFind:Destroy()
+end
+
+local MusicIntro = Instance.new("Sound", ScreenGuiHub)
+MusicIntro.SoundId = "rbxassetid://138248399002834"
+MusicIntro.Volume = 0.5
+MusicIntro.Looped = false
+
+local MusicLoop = Instance.new("Sound", ScreenGuiHub)
+MusicLoop.SoundId = "rbxassetid://108485558387341"
+MusicLoop.Volume = 0.5
+MusicLoop.Looped = true
+
+local isMusicPlaying = false
+local function PlayMusic()
+	if not isMusicPlaying then
+		isMusicPlaying = true
+		MusicIntro:Play()
+	end
+end
+
+MusicIntro.Ended:Connect(function()
+	if isMusicPlaying and MainHubFrame and MainHubFrame.Visible then
+		MusicLoop:Play()
+	end
+end)
+
+local function StopMusic()
+	isMusicPlaying = false
+	MusicIntro:Stop()
+	MusicLoop:Stop()
+end
+
+MainHubFrame = Create("Frame", ScreenGuiHub, {
+	Size = UDim2.new(0, 550, 0, 380),
+	Position = UDim2.new(0.5, -275, 0.5, -190),
+	BackgroundColor3 = Color3.fromRGB(10, 0, 30),
+	BackgroundTransparency = 0,
+	Visible = false,
+	Active = true,
+	Name = "Hub",
+	ZIndex = 1
+})
+
+local WindowBackground = Create("Frame", MainHubFrame, {
+	Name = "WindowBackground",
+	Size = UDim2.new(1, 0, 1, 0),
+	Position = UDim2.new(0, 0, 0, 0),
+	BackgroundColor3 = Color3.fromRGB(12, 0, 28),
+	BackgroundTransparency = 0,
+	ZIndex = 0
+})
+redzlib.Elements["Corner"](WindowBackground, UDim.new(0, 8))
+
+local WindowTint = Instance.new("Frame")
+WindowTint.Name = "AvariceTint"
+WindowTint.Size = UDim2.new(1, 0, 1, 0)
+WindowTint.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+WindowTint.BackgroundTransparency = 0.35
+WindowTint.BorderSizePixel = 0
+WindowTint.ZIndex = 0
+WindowTint.Parent = MainHubFrame
+Instance.new("UICorner", WindowTint).CornerRadius = UDim.new(0, 8)
+local WindowGrad = Instance.new("UIGradient")
+WindowGrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 0, 60)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(150, 0, 255)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(150, 0, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 0, 60))
+})
+WindowGrad.Parent = WindowTint
+task.spawn(function()
+	while WindowGrad.Parent do
+		TweenService:Create(WindowGrad, TweenInfo.new(4, Enum.EasingStyle.Linear), { Offset = Vector2.new(1, 0) }):Play()
+		task.wait(4)
+		WindowGrad.Offset = Vector2.new(-1, 0)
+	end
+end)
+
+local ParticleContainer = Instance.new("Frame")
+ParticleContainer.Name = "Particles"
+ParticleContainer.Size = UDim2.new(1, -redzlib.Save.TabSize, 1, -28)
+ParticleContainer.Position = UDim2.new(1, 0, 1, 0)
+ParticleContainer.AnchorPoint = Vector2.new(1, 1)
+ParticleContainer.BackgroundTransparency = 1
+ParticleContainer.ClipsDescendants = true
+ParticleContainer.ZIndex = 2
+Instance.new("UICorner", ParticleContainer).CornerRadius = UDim.new(0, 8)
+ParticleContainer.Parent = MainHubFrame
+
+local liveParticles = {}
+local particleConfig = {
+	MaxParticles = 30,
+	SpawnRate = 0.1,
+	SizeMin = 6,
+	SizeMax = 10,
+	SpeedMin = 15,
+	SpeedMax = 25,
+	Lifetime = 6
+}
+local lastParticleSpawn = 0
+
+local function spawnThemeParticle()
+	if #liveParticles >= particleConfig.MaxParticles then
+		return
+	end
+	local area = ParticleContainer.AbsoluteSize
+	if area.X < 12 or area.Y < 12 then
+		return
+	end
+	local size = math.random(particleConfig.SizeMin, particleConfig.SizeMax)
+	local speed = math.random(particleConfig.SpeedMin, particleConfig.SpeedMax)
+	local useWhite = (#liveParticles % 2 == 0)
+	local color = useWhite and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 0, 255)
+	local x = math.random(10, math.max(11, math.floor(area.X - 10)))
+	local y = area.Y + 20
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.fromOffset(size, size)
+	frame.Position = UDim2.fromOffset(x, y)
+	frame.BackgroundColor3 = color
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.ZIndex = 2
+	frame.Parent = ParticleContainer
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(1, 0)
+
+	local glow = Instance.new("Frame")
+	glow.Size = UDim2.new(1, 6, 1, 6)
+	glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	glow.AnchorPoint = Vector2.new(0.5, 0.5)
+	glow.BackgroundColor3 = color
+	glow.BackgroundTransparency = 1
+	glow.BorderSizePixel = 0
+	glow.ZIndex = 1
+	glow.Parent = frame
+	Instance.new("UICorner", glow).CornerRadius = UDim.new(1, 0)
+
+	Tween(frame, { BackgroundTransparency = 0.2 }, 0.8)
+	Tween(glow, { BackgroundTransparency = 0.7 }, 0.8)
+	TweenService:Create(frame, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		BackgroundColor3 = useWhite and Color3.fromRGB(150, 0, 255) or Color3.fromRGB(255, 255, 255)
+	}):Play()
+	TweenService:Create(glow, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		BackgroundColor3 = useWhite and Color3.fromRGB(150, 0, 255) or Color3.fromRGB(255, 255, 255)
+	}):Play()
+
+	table.insert(liveParticles, {
+		Frame = frame,
+		Glow = glow,
+		StartTime = tick(),
+		Speed = speed
+	})
+end
+
+RunService.Heartbeat:Connect(function()
+	if not MainHubFrame.Visible then
+		return
+	end
+	for i = #liveParticles, 1, -1 do
+		local p = liveParticles[i]
+		local age = tick() - p.StartTime
+		if age >= particleConfig.Lifetime or p.Frame.Position.Y.Offset < -20 then
+			Tween(p.Frame, { BackgroundTransparency = 1 }, 0.5)
+			Tween(p.Glow, { BackgroundTransparency = 1 }, 0.5)
+			task.delay(0.5, function()
+				if p.Frame then
+					p.Frame:Destroy()
+				end
+			end)
+			table.remove(liveParticles, i)
+		else
+			local pos = p.Frame.Position
+			p.Frame.Position = UDim2.fromOffset(pos.X.Offset, pos.Y.Offset - p.Speed * 0.016)
+			local life = age / particleConfig.Lifetime
+			if life > 0.8 then
+				p.Frame.BackgroundTransparency = math.clamp(0.2 + (life - 0.8) / 0.2 * 0.8, 0.2, 1)
+			end
+		end
+	end
+	if tick() - lastParticleSpawn >= particleConfig.SpawnRate then
+		lastParticleSpawn = tick()
+		spawnThemeParticle()
+	end
+end)
+
+local Components = Create("Frame", MainHubFrame, {
+	Name = "Components",
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ZIndex = 10
+})
+
+local Stroke = Create("UIStroke", MainHubFrame, {
+	Color = Color3.fromRGB(255, 255, 255),
+	Thickness = 2.5,
+	ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+})
+
+local StrokeGradient = Create("UIGradient", Stroke, {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+	}),
+	Rotation = 0
+})
+table.insert(activeGradients, StrokeGradient)
+
+redzlib.Elements["Gradient"](MainHubFrame, { Rotation = 45 })
+redzlib.Elements["Corner"](MainHubFrame)
+
+local ToggleButton = Instance.new("TextButton", ScreenGuiHub)
+ToggleButton.Size = UDim2.new(0, 44, 0, 44)
+ToggleButton.Position = UDim2.new(0.02, 0, 0.28, 0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 0, 60)
+ToggleButton.BackgroundTransparency = 0.1
+ToggleButton.Text = "A"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 18
+ToggleButton.FontFace = UIFontFace
+ToggleButton.ZIndex = 50
+ToggleButton.Name = "AvariceToggle"
+ToggleButton.AutoButtonColor = false
+ToggleButton.Visible = false
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
+ApplyMetallicBorder(ToggleButton, 1.8)
+
+local dragging = false
+local dragInput = nil
+local clickTimer = 0
+local startPos = UDim2.new()
+local dragStart = Vector3.new()
+
+ToggleButton.InputBegan:Connect(function(input)
+	if not dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) then
+		dragging = true
+		dragInput = input
+		startPos = ToggleButton.Position
+		dragStart = input.Position
+		clickTimer = tick()
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input == dragInput then
+		local delta = input.Position - dragStart
+		local scale = ScreenGuiHub.Scale.Scale
+		ToggleButton.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + (delta.X / scale),
+			startPos.Y.Scale,
+			startPos.Y.Offset + (delta.Y / scale)
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if dragging and input == dragInput then
+		dragging = false
+		dragInput = nil
+		local endPos = input.Position
+		if (endPos - dragStart).Magnitude < 15 or (tick() - clickTimer) < 0.2 then
+			MainHubFrame.Visible = not MainHubFrame.Visible
+			if MainHubFrame.Visible then
+				PlayMusic()
+			else
+				StopMusic()
+			end
+		end
+	end
+end)
+
+local resizeHandle = Create("TextButton", MainHubFrame, {
+	Size = UDim2.new(0, 16, 0, 16),
+	Position = UDim2.new(1, -2, 1, -2),
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundColor3 = Color3.fromRGB(150, 0, 255),
+	BackgroundTransparency = 0.35,
+	Text = "",
+	Name = "ResizeHandle",
+	ZIndex = 200,
+	Active = true,
+	AutoButtonColor = false
+})
+Instance.new("UICorner", resizeHandle).CornerRadius = UDim.new(0, 4)
+
+local resizing = false
+local resizeStartPos, resizeStartSize
+
+resizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		resizing = true
+		resizeStartPos = input.Position
+		resizeStartSize = MainHubFrame.AbsoluteSize
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local scale = ScreenGuiHub.Scale.Scale
+		local delta = input.Position - resizeStartPos
+		local newWidth = math.clamp((resizeStartSize.X + delta.X) / scale, 380, 900)
+		local newHeight = math.clamp((resizeStartSize.Y + delta.Y) / scale, 280, 700)
+		MainHubFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		resizing = false
+	end
+end)
+
+local TopBar = Create("Frame", Components, {
+	Size = UDim2.new(1, 0, 0, 28),
+	BackgroundTransparency = 1,
+	Name = "Top Bar",
+	ZIndex = 11
+})
+
+MakeDrag(TopBar, MainHubFrame)
+
+local Title = Create("TextLabel", TopBar, {
+	Position = UDim2.new(0, 10, 0.5),
+	AnchorPoint = Vector2.new(0, 0.5),
+	AutomaticSize = "XY",
+	Text = '<font family="12187360881">AVARICE SCYTHE</font>',
+	RichText = true,
+	TextXAlignment = "Left",
+	TextSize = 13.8,
+	TextColor3 = Theme["Color Text"],
+	BackgroundTransparency = 1,
+	Name = "Title",
+	ZIndex = 12
+})
+
+Create("TextLabel", Title, {
+	Size = UDim2.fromScale(0, 1),
+	AutomaticSize = "X",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(1, 5, 0.9),
+	Text = '<font family="12187360881">by DYTON_txt</font>',
+	RichText = true,
+	TextColor3 = Theme["Color Dark Text"],
+	BackgroundTransparency = 1,
+	TextXAlignment = "Left",
+	TextYAlignment = "Bottom",
+	TextSize = 8,
+	Name = "SubTitle",
+	ZIndex = 12
+})
+
+local MainScroll = Create("ScrollingFrame", Components, {
+	Size = UDim2.new(0, redzlib.Save.TabSize, 1, -TopBar.Size.Y.Offset),
+	ScrollBarImageColor3 = Theme["Color Theme"],
+	Position = UDim2.new(0, 0, 1, 0),
+	AnchorPoint = Vector2.new(0, 1),
+	ScrollBarThickness = 1.5,
+	BackgroundTransparency = 1,
+	ScrollBarImageTransparency = 0.2,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = "Y",
+	ScrollingDirection = "Y",
+	BorderSizePixel = 0,
+	Name = "Tab Scroll",
+	ZIndex = 11
+}, {
+	Create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10) }),
+	Create("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder, Name = "TabList" })
+})
+
+local Containers = Create("Frame", Components, {
+	Size = UDim2.new(1, -MainScroll.Size.X.Offset, 1, -TopBar.Size.Y.Offset),
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ClipsDescendants = true,
+	Name = "Containers",
+	ZIndex = 11
+})
+
+local DEFAULT_TAB_SIZE = redzlib.Save.TabSize or 160
+local currentTabSize = DEFAULT_TAB_SIZE
+
+local TabResetBtn = Create("TextButton", MainHubFrame, {
+	Size = UDim2.new(0, 18, 0, 18),
+	Position = UDim2.new(0, -22, 0, 34),
+	BackgroundColor3 = ThemeColors.DarkPanel,
+	BackgroundTransparency = 0.15,
+	Text = "x",
+	TextColor3 = ThemeColors.SoftWhite,
+	TextSize = 12,
+	FontFace = UIFontFace,
+	Visible = false,
+	AutoButtonColor = false,
+	Name = "TabReset",
+	ZIndex = 80
+})
+Create("UICorner", TabResetBtn, { CornerRadius = UDim.new(1, 0) })
+ApplyMetallicBorder(TabResetBtn, 1.2)
+
+local function ApplyTabPanelSize(width)
+	currentTabSize = math.clamp(width, 110, 280)
+	redzlib.Save.TabSize = currentTabSize
+	MainScroll.Size = UDim2.new(0, currentTabSize, 1, -TopBar.Size.Y.Offset)
+	Containers.Size = UDim2.new(1, -currentTabSize, 1, -TopBar.Size.Y.Offset)
+	if ParticleContainer then
+		ParticleContainer.Size = UDim2.new(1, -currentTabSize, 1, -28)
+	end
+	TabResetBtn.Position = UDim2.new(0, -22, 0, 34)
+	TabResetBtn.Visible = (not Minimized) and currentTabSize > DEFAULT_TAB_SIZE + 4
+	if tabResizeHandle then
+		tabResizeHandle.Position = UDim2.new(0, currentTabSize - 2, 1, -2)
+	end
+end
+
+local tabResizing = false
+local tabResizeStart, tabResizeWidth
+local tabResizeHandle = Create("TextButton", Components, {
+	Size = UDim2.new(0, 12, 0, 16),
+	Position = UDim2.new(0, currentTabSize - 2, 1, -2),
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundColor3 = Color3.fromRGB(150, 0, 255),
+	BackgroundTransparency = 0.35,
+	Text = "",
+	Name = "TabResizeHandle",
+	ZIndex = 40,
+	Active = true,
+	AutoButtonColor = false
+})
+Instance.new("UICorner", tabResizeHandle).CornerRadius = UDim.new(0, 3)
+
+tabResizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		tabResizing = true
+		tabResizeStart = input.Position
+		tabResizeWidth = currentTabSize
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if tabResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local scale = ScreenGuiHub.Scale.Scale
+		local delta = (input.Position.X - tabResizeStart.X) / scale
+		ApplyTabPanelSize(tabResizeWidth + delta)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		tabResizing = false
+	end
+end)
+
+TabResetBtn.Activated:Connect(function()
+	ApplyTabPanelSize(DEFAULT_TAB_SIZE)
+end)
+
+local EmptyOverlay = Create("Frame", Containers, {
+	Name = "EmptyOverlay",
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	Visible = false,
+	ZIndex = 20
+})
+Create("TextLabel", EmptyOverlay, {
+	Size = UDim2.new(1, 0, 0, 48),
+	Position = UDim2.new(0.5, 0, 0.5, -16),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	Text = "★",
+	TextColor3 = ThemeColors.SoftWhite,
+	TextSize = 34,
+	ZIndex = 21
+})
+Create("TextLabel", EmptyOverlay, {
+	Size = UDim2.new(1, 0, 0, 24),
+	Position = UDim2.new(0.5, 0, 0.5, 22),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	Text = "the tap is empty",
+	TextColor3 = ThemeColors.LightGray,
+	FontFace = UIFontFace,
+	TextSize = 14,
+	ZIndex = 21
+})
+
+local ButtonsFolder = Create("Folder", TopBar, { Name = "Buttons" })
+local CloseButton = Create("TextButton", {
+	Size = UDim2.new(0, 21, 0, 21),
+	Position = UDim2.new(1, -10, 0.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundTransparency = 1,
+	Text = "X",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextSize = 12,
+	FontFace = UIFontFace,
+	AutoButtonColor = false,
+	Name = "Close",
+	ZIndex = 12
+})
+
+local MinimizeButton = Create("TextButton", {
+	Size = UDim2.new(0, 21, 0, 21),
+	Position = UDim2.new(1, -35, 0.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundTransparency = 1,
+	Text = "-",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextSize = 16,
+	FontFace = UIFontFace,
+	AutoButtonColor = false,
+	Name = "Minimize",
+	ZIndex = 12
+})
+SetChildren(ButtonsFolder, { CloseButton, MinimizeButton })
+
+local function applyTabOrders()
+	for i, btn in ipairs(TabButtons or {}) do
+		btn.LayoutOrder = i
+	end
+end
+
+local Minimized, SaveSize, WaitClick
+local Window = {}
+
+function Window:CloseBtn()
+	Window:Dialog({
+		Title = "AVARICE SCYTHE",
+		Text = "هل تريد إغلاق السكربت؟",
+		Options = {
+			{
+				"نعم",
+				function()
+					StopMusic()
+					ScreenGuiHub:Destroy()
+				end
+			},
+			{ "لا" }
+		}
+	})
+end
+
+local function SetExtraChrome(vis)
+	if resizeHandle then
+		resizeHandle.Visible = vis
+	end
+	if tabResizeHandle then
+		tabResizeHandle.Visible = vis
+	end
+	if TabResetBtn then
+		TabResetBtn.Visible = vis and currentTabSize > DEFAULT_TAB_SIZE + 4
+	end
+end
+
+function Window:MinimizeBtn()
+	if WaitClick then
+		return
+	end
+	WaitClick = true
+	if Minimized then
+		MinimizeButton.Text = "-"
+		CreateTween({ MainHubFrame, "Size", SaveSize, 0.25, true })
+		Minimized = false
+		SetExtraChrome(true)
+	else
+		MinimizeButton.Text = "+"
+		SaveSize = MainHubFrame.Size
+		SetExtraChrome(false)
+		CreateTween({ MainHubFrame, "Size", UDim2.fromOffset(MainHubFrame.Size.X.Offset, 28), 0.25, true })
+		Minimized = true
+	end
+	WaitClick = false
+end
+
+function Window:Dialog(Configs)
+	local DTitle = Configs.Title or "Dialog"
+	local DText = Configs.Text or ""
+	local DOptions = Configs.Options or {}
+
+	local Screen = Create("Frame", MainHubFrame, {
+		BackgroundTransparency = 1,
+		Active = true,
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		Size = UDim2.new(1, 0, 1, 0),
+		Name = "Dialog",
+		ZIndex = 100
+	})
+
+	local Frame = Create("Frame", Screen, {
+		Active = true,
+		Size = UDim2.fromOffset(250, 150),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(16, 16, 16),
+		ZIndex = 101
+	}, {
+		Create("TextLabel", {
+			FontFace = UIFontFace,
+			Size = UDim2.new(1, 0, 0, 20),
+			Text = DTitle,
+			TextXAlignment = "Left",
+			TextColor3 = Theme["Color Text"],
+			TextSize = 15,
+			Position = UDim2.fromOffset(15, 5),
+			BackgroundTransparency = 1,
+			ZIndex = 102
+		}),
+		Create("TextLabel", {
+			FontFace = UIFontFace,
+			Size = UDim2.new(1, -25),
+			AutomaticSize = "Y",
+			Text = DText,
+			TextXAlignment = "Left",
+			TextColor3 = Theme["Color Dark Text"],
+			TextSize = 12,
+			Position = UDim2.fromOffset(15, 25),
+			BackgroundTransparency = 1,
+			TextWrapped = true,
+			ZIndex = 102
+		})
+	})
+
+	redzlib.Elements["Corner"](Frame)
+	ApplyMetallicBorder(Frame, 2)
+
+	local ButtonsHolder = Create("Frame", Frame, {
+		Size = UDim2.fromScale(1, 0.35),
+		Position = UDim2.fromScale(0, 1),
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundColor3 = Theme["Color Hub 2"],
+		BackgroundTransparency = 1,
+		ZIndex = 102
+	}, {
+		Create("UIListLayout", {
+			Padding = UDim.new(0, 10),
+			VerticalAlignment = "Center",
+			FillDirection = "Horizontal",
+			HorizontalAlignment = "Center"
+		})
+	})
+
+	CreateTween({ Screen, "BackgroundTransparency", 0.6, 0.15 })
+
+	local ButtonCount, Dialog = 1, {}
+	function Dialog:Button(Configs)
+		local Name = Configs[1] or ""
+		local Callback = Configs[2] or function() end
+		ButtonCount = ButtonCount + 1
+
+		local Button = Create("TextButton", ButtonsHolder, {
+			Text = Name,
+			FontFace = UIFontFace,
+			TextColor3 = Theme["Color Text"],
+			TextSize = 12,
+			BackgroundColor3 = ThemeColors.ButtonNormal,
+			AutoButtonColor = false,
+			ZIndex = 105
+		})
+		redzlib.Elements["Corner"](Button, UDim.new(0, 6))
+		ApplyMetallicBorder(Button, 2)
+		StyleInteractive(Button)
+
+		for _, Btn in pairs(ButtonsHolder:GetChildren()) do
+			if Btn:IsA("TextButton") then
+				Btn.Size = UDim2.new(1 / ButtonCount, -(((ButtonCount - 1) * 20) / ButtonCount), 0, 32)
+			end
+		end
+
+		Button.Activated:Connect(function()
+			Dialog.Close()
+			Callback()
+		end)
+	end
+
+	function Dialog:Close()
+		Screen:Destroy()
+	end
+
+	table.foreach(DOptions, function(_, Button)
+		Dialog:Button(Button)
+	end)
+
+	return Dialog
+end
+
+CloseButton.Activated:Connect(Window.CloseBtn)
+MinimizeButton.Activated:Connect(Window.MinimizeBtn)
+
+local TabContainers = {}
+local TabButtons = {}
+local TabPages = {}
+local TabDrag = {
+	holding = false,
+	dragging = false,
+	source = nil,
+	origin = nil,
+	hover = nil,
+	ghost = nil,
+	dragInput = nil,
+	dragStart = nil,
+	startPos = nil,
+	finger = nil,
+	suppress = {}
+}
+local tabShaking = {}
+
+local function getGuiScale()
+	local scaleObj = ScreenGuiHub and ScreenGuiHub:FindFirstChild("Scale")
+	if scaleObj and scaleObj:IsA("UIScale") then
+		return scaleObj.Scale
+	end
+	return UIScale or 1
+end
+
+local function fingerPoints(input)
+	local points = {}
+	local mouse = UserInputService:GetMouseLocation()
+	if mouse then
+		table.insert(points, mouse)
+	end
+	if input then
+		local pos = Vector2.new(input.Position.X, input.Position.Y)
+		local inset = GuiService:GetGuiInset()
+		table.insert(points, pos)
+		table.insert(points, pos + inset)
+	end
+	if TabDrag.finger then
+		table.insert(points, TabDrag.finger)
+	end
+	return points
+end
+
+local function inputScreenPos(input)
+	return UserInputService:GetMouseLocation() or (input and Vector2.new(input.Position.X, input.Position.Y))
+end
+
+local function stopTabShake(btn)
+	if not btn then
+		return
+	end
+	tabShaking[btn] = false
+	if btn.Parent then
+		Tween(btn, { Rotation = 0 }, 0.12)
+	end
+end
+
+local function startTabShake(btn)
+	if not btn or tabShaking[btn] then
+		return
+	end
+	tabShaking[btn] = true
+	task.spawn(function()
+		local dir = 1
+		while tabShaking[btn] and btn.Parent do
+			Tween(btn, { Rotation = 4 * dir }, 0.08)
+			dir = -dir
+			task.wait(0.08)
+		end
+		if btn.Parent then
+			Tween(btn, { Rotation = 0 }, 0.12)
+		end
+	end)
+end
+
+local function indexOfTab(btn)
+	for i, b in ipairs(TabButtons) do
+		if b == btn then
+			return i
+		end
+	end
+end
+
+local function syncTabArrays()
+	for i, btn in ipairs(TabButtons) do
+		TabContainers[i] = TabPages[btn]
+		btn.LayoutOrder = i
+	end
+end
+
+local function swapTabs(a, b)
+	if not a or not b or a == b then
+		return false
+	end
+	if a < 1 or b < 1 or a > #TabButtons or b > #TabButtons then
+		return false
+	end
+	TabButtons[a], TabButtons[b] = TabButtons[b], TabButtons[a]
+	syncTabArrays()
+	return true
+end
+
+local function isGhostObject(obj)
+	local cur = obj
+	while cur and cur ~= ScreenGuiHub do
+		if cur.Name == "TabDragGhost" then
+			return true
+		end
+		cur = cur.Parent
+	end
+	return false
+end
+
+local function tabFromGuiObject(obj)
+	local cur = obj
+	while cur and cur ~= ScreenGuiHub do
+		if cur.Name == "TabDragGhost" then
+			return
+		end
+		for i, b in ipairs(TabButtons) do
+			if b == cur then
+				return i, b
+			end
+		end
+		cur = cur.Parent
+	end
+end
+
+local function tabUnderInput(input)
+	for _, pos in ipairs(fingerPoints(input)) do
+		local ok, objs = pcall(function()
+			return playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
+		end)
+		if ok and objs then
+			for _, obj in ipairs(objs) do
+				if not isGhostObject(obj) then
+					local index, btn = tabFromGuiObject(obj)
+					if btn and btn ~= TabDrag.source then
+						return index, btn
+					end
+				end
+			end
+		end
+	end
+
+	local pos = UserInputService:GetMouseLocation()
+	if input then
+		pos = Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset()
+	end
+	if TabDrag.finger then
+		pos = TabDrag.finger
+	end
+	if MainScroll and MainScroll.Parent then
+		local lp, ls = MainScroll.AbsolutePosition, MainScroll.AbsoluteSize
+		if pos.X >= lp.X - 24 and pos.X <= lp.X + ls.X + 28 then
+			local bestIndex, bestBtn, bestDist = nil, nil, math.huge
+			for i, b in ipairs(TabButtons) do
+				if b.Parent and b.Visible and b ~= TabDrag.source then
+					local p, s = b.AbsolutePosition, b.AbsoluteSize
+					local cy = p.Y + s.Y * 0.5
+					local dist = math.abs(pos.Y - cy)
+					if pos.Y >= p.Y - 12 and pos.Y <= p.Y + s.Y + 12 and dist < bestDist then
+						bestDist = dist
+						bestIndex = i
+						bestBtn = b
+					end
+				end
+			end
+			if bestBtn then
+				return bestIndex, bestBtn
+			end
+		end
+	end
+end
+
+local function destroyTabGhost()
+	if TabDrag.ghost then
+		TabDrag.ghost:Destroy()
+		TabDrag.ghost = nil
+	end
+end
+
+local function snapGhostToSource(ghost, source)
+	local scale = getGuiScale()
+	local parent = ghost.Parent
+	if not parent then
+		return
+	end
+	local srcPos = source.AbsolutePosition
+	local srcSize = source.AbsoluteSize
+	local parentPos = parent.AbsolutePosition
+	ghost.AnchorPoint = Vector2.new(0, 0)
+	ghost.Size = UDim2.fromOffset(srcSize.X / scale, srcSize.Y / scale)
+	ghost.Position = UDim2.fromOffset((srcPos.X - parentPos.X) / scale, (srcPos.Y - parentPos.Y) / scale)
+	local err = source.AbsolutePosition - ghost.AbsolutePosition
+	if err.Magnitude > 0.25 then
+		ghost.Position = UDim2.fromOffset(
+			ghost.Position.X.Offset + (err.X / scale),
+			ghost.Position.Y.Offset + (err.Y / scale)
+		)
+	end
+end
+
+local function placeTabGhost(source, input)
+	destroyTabGhost()
+	local tabName = source:GetAttribute("TabName") or "Tab"
+
+	local ghost = Instance.new("Frame")
+	ghost.Name = "TabDragGhost"
+	ghost.BackgroundColor3 = ThemeColors.ButtonNormal
+	ghost.BackgroundTransparency = 0.04
+	ghost.BorderSizePixel = 0
+	ghost.ZIndex = 800
+	ghost.Active = false
+	ghost.AnchorPoint = Vector2.new(0, 0)
+	ghost.Parent = ScreenGuiHub
+	redzlib.Elements["Corner"](ghost, UDim.new(0, 8))
+	ApplyMetallicBorder(ghost, 2.1)
+	snapGhostToSource(ghost, source)
+
+	local icon = Instance.new("Frame")
+	icon.Size = UDim2.new(0, 10, 0, 10)
+	icon.Position = UDim2.new(0, 12, 0.5, 0)
+	icon.AnchorPoint = Vector2.new(0, 0.5)
+	icon.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
+	icon.BorderSizePixel = 0
+	icon.ZIndex = 801
+	icon.Parent = ghost
+	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "GhostName"
+	label.Size = UDim2.new(1, -34, 1, 0)
+	label.Position = UDim2.new(0, 31, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = '<font family="12187360881">' .. tabName .. "</font>"
+	label.RichText = true
+	label.TextColor3 = Theme["Color Text"]
+	label.FontFace = UIFontFace
+	label.TextSize = 11
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.ZIndex = 801
+	label.Parent = ghost
+
+	TabDrag.ghost = ghost
+	TabDrag.startPos = ghost.Position
+	TabDrag.dragStart = input.Position
+	TabDrag.dragInput = input
+end
+
+local function moveTabGhost(input)
+	local ghost = TabDrag.ghost
+	if not ghost or not TabDrag.dragStart or not TabDrag.startPos then
+		return
+	end
+	local scale = getGuiScale()
+	local delta = input.Position - TabDrag.dragStart
+	local startPos = TabDrag.startPos
+	ghost.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + (delta.X / scale),
+		startPos.Y.Scale,
+		startPos.Y.Offset + (delta.Y / scale)
+	)
+end
+
+local function highlightDropTarget(targetBtn)
+	for _, b in ipairs(TabButtons) do
+		if b == TabDrag.source then
+			Tween(b, { BackgroundTransparency = 0.62 }, 0.1)
+		elseif b == targetBtn then
+			startTabShake(b)
+			Tween(b, { BackgroundTransparency = 0.05 }, 0.1)
+		else
+			stopTabShake(b)
+			if b.Parent then
+				Tween(b, { BackgroundTransparency = 0, Rotation = 0 }, 0.1)
+			end
+		end
+	end
+end
+
+local function autoScrollTabs(screenPos)
+	if not MainScroll then
+		return
+	end
+	local areaPos = MainScroll.AbsolutePosition
+	local areaSize = MainScroll.AbsoluteSize
+	local edge = 28
+	local speed = 0
+	if screenPos.Y < areaPos.Y + edge then
+		speed = -18
+	elseif screenPos.Y > areaPos.Y + areaSize.Y - edge then
+		speed = 18
+	end
+	if speed ~= 0 then
+		local maxY = math.max(0, MainScroll.AbsoluteCanvasSize.Y - areaSize.Y)
+		MainScroll.CanvasPosition = Vector2.new(0, math.clamp(MainScroll.CanvasPosition.Y + speed, 0, maxY))
+	end
+end
+
+local function resetTabVisuals()
+	for _, b in ipairs(TabButtons) do
+		stopTabShake(b)
+		if b.Parent then
+			Tween(b, { BackgroundTransparency = 0, Rotation = 0 }, 0.12)
+		end
+	end
+end
+
+local function clearTabDragState()
+	if MainScroll then
+		MainScroll.ScrollingEnabled = true
+	end
+	WindowDraggingBlocked = false
+	TabDrag.holding = false
+	TabDrag.dragging = false
+	TabDrag.source = nil
+	TabDrag.origin = nil
+	TabDrag.hover = nil
+	TabDrag.dragInput = nil
+	TabDrag.dragStart = nil
+	TabDrag.startPos = nil
+	TabDrag.finger = nil
+end
+
+local function returnGhostHome(source, done)
+	local ghost = TabDrag.ghost
+	if not ghost or not ghost.Parent or not source or not source.Parent then
+		destroyTabGhost()
+		if done then
+			done()
+		end
+		return
+	end
+	local scale = getGuiScale()
+	local parentPos = ghost.Parent.AbsolutePosition
+	local dest = UDim2.fromOffset(
+		(source.AbsolutePosition.X - parentPos.X) / scale,
+		(source.AbsolutePosition.Y - parentPos.Y) / scale
+	)
+	local tw = Tween(ghost, { Position = dest, BackgroundTransparency = 0.35 }, 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	tw.Completed:Connect(function()
+		destroyTabGhost()
+		if done then
+			done()
+		end
+	end)
+end
+
+local function finishTabDrag(input)
+	if not TabDrag.holding then
+		return
+	end
+	local source = TabDrag.source
+	local didDrag = TabDrag.dragging
+	local hoverIndex, hoverBtn = tabUnderInput(input)
+	if not hoverIndex and TabDrag.hover then
+		hoverIndex = TabDrag.hover
+		hoverBtn = TabButtons[hoverIndex]
+	end
+	if hoverBtn == source then
+		hoverIndex, hoverBtn = nil, nil
+	end
+	local fromIndex = indexOfTab(source)
+
+	local function finishReset()
+		resetTabVisuals()
+		clearTabDragState()
+	end
+
+	if didDrag and source then
+		TabDrag.suppress[source] = true
+		task.delay(0.2, function()
+			TabDrag.suppress[source] = false
+		end)
+		if hoverIndex and fromIndex and hoverIndex ~= fromIndex then
+			destroyTabGhost()
+			swapTabs(fromIndex, hoverIndex)
+			finishReset()
+			return
+		end
+		returnGhostHome(source, finishReset)
+		return
+	end
+
+	destroyTabGhost()
+	finishReset()
+end
+
+local function beginTabDrag(btn, input)
+	if Minimized then
+		return
+	end
+	if TabDrag.holding then
+		return
+	end
+	TabDrag.holding = true
+	TabDrag.dragging = false
+	TabDrag.source = btn
+	TabDrag.origin = input.Position
+	TabDrag.dragInput = input
+	TabDrag.hover = indexOfTab(btn)
+	WindowDraggingBlocked = true
+end
+
+UserInputService.InputChanged:Connect(function(input)
+	if not TabDrag.holding or not TabDrag.source or not TabDrag.origin then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+		return
+	end
+	if TabDrag.dragInput and input ~= TabDrag.dragInput and input.UserInputType ~= Enum.UserInputType.MouseMovement then
+		return
+	end
+	if not TabDrag.dragging then
+		if (input.Position - TabDrag.origin).Magnitude < 8 then
+			return
+		end
+		TabDrag.dragging = true
+		if MainScroll then
+			MainScroll.ScrollingEnabled = false
+		end
+		placeTabGhost(TabDrag.source, input)
+		Tween(TabDrag.source, { BackgroundTransparency = 0.62 }, 0.12)
+	end
+	moveTabGhost(input)
+	TabDrag.finger = UserInputService:GetMouseLocation()
+	autoScrollTabs(TabDrag.finger)
+	local hoverIndex, hoverBtn = tabUnderInput(input)
+	if hoverBtn == TabDrag.source then
+		hoverIndex, hoverBtn = nil, nil
+	end
+	TabDrag.hover = hoverIndex
+	highlightDropTarget(hoverBtn)
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if not TabDrag.holding then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		finishTabDrag(input)
+	end
+end)
+
+local function SetTabActive(btn, on)
+	Tween(btn, { BackgroundColor3 = on and Color3.fromRGB(55, 0, 100) or ThemeColors.ButtonNormal }, 0.2)
+	local bar = btn:FindFirstChild("ActiveBar")
+	if bar then
+		Tween(bar, {
+			BackgroundTransparency = on and 0 or 0.82,
+			Size = on and UDim2.new(0, 3, 0, 16) or UDim2.new(0, 3, 0, 7)
+		}, 0.2)
+	end
+end
+
+function CreateTab(TabName)
+	local TabBtn = Create("TextButton", {
+		Parent = MainScroll,
+		Size = UDim2.new(1, 0, 0, 26),
+		Text = "",
+		BackgroundColor3 = ThemeColors.ButtonNormal,
+		AutoButtonColor = false,
+		ZIndex = 12
+	})
+	redzlib.Elements["Corner"](TabBtn, UDim.new(0, 8))
+	ApplyMetallicBorder(TabBtn, 2.1)
+	StyleInteractive(TabBtn)
+	TabBtn:SetAttribute("TabName", TabName)
+
+	local activeBar = Instance.new("Frame")
+	activeBar.Name = "ActiveBar"
+	activeBar.Size = UDim2.new(0, 3, 0, 7)
+	activeBar.Position = UDim2.new(0, 4, 0.5, 0)
+	activeBar.AnchorPoint = Vector2.new(0, 0.5)
+	activeBar.BackgroundColor3 = ThemeColors.PureWhite
+	activeBar.BackgroundTransparency = 0.82
+	activeBar.BorderSizePixel = 0
+	activeBar.ZIndex = 14
+	activeBar.Parent = TabBtn
+	Instance.new("UICorner", activeBar).CornerRadius = UDim.new(1, 0)
+
+	local icon = Instance.new("Frame")
+	icon.Size = UDim2.new(0, 8, 0, 8)
+	icon.Position = UDim2.new(0, 14, 0.5, 0)
+	icon.AnchorPoint = Vector2.new(0, 0.5)
+	icon.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
+	icon.BorderSizePixel = 0
+	icon.ZIndex = 13
+	icon.Parent = TabBtn
+	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
+
+	Create("TextLabel", {
+		Parent = TabBtn,
+		Size = UDim2.new(1, -34, 1, 0),
+		Position = UDim2.new(0, 31, 0, 0),
+		Text = '<font family="12187360881">' .. TabName .. "</font>",
+		TextColor3 = Theme["Color Text"],
+		FontFace = UIFontFace,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		BackgroundTransparency = 1,
+		RichText = true,
+		ZIndex = 13
+	})
+
+	local Page = Create("ScrollingFrame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		ScrollBarThickness = 2,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = "Y",
+		ScrollingDirection = "Y",
+		BorderSizePixel = 0,
+		ZIndex = 12
+	})
+	Create("UIListLayout", Page, { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder })
+	Create("UIPadding", Page, { PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 10) })
+
+	local function pageHasItems()
+		for _, child in ipairs(Page:GetChildren()) do
+			if child:IsA("GuiObject") then
+				return true
+			end
+		end
+		return false
+	end
+
+	local function refreshEmpty()
+		if Page.Parent == Containers then
+			EmptyOverlay.Visible = not pageHasItems()
+		end
+	end
+	Page.ChildAdded:Connect(refreshEmpty)
+	Page.ChildRemoved:Connect(refreshEmpty)
+
+	TabBtn.LayoutOrder = #TabButtons + 1
+	TabPages[TabBtn] = Page
+	table.insert(TabButtons, TabBtn)
+	table.insert(TabContainers, Page)
+
+	TabBtn.Active = true
+	TabBtn.InputBegan:Connect(function(input)
+		if TabDrag.holding or TabDrag.dragging then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			beginTabDrag(TabBtn, input)
+		end
+	end)
+
+	if #TabContainers == 1 then
+		Page.Parent = Containers
+		SetTabActive(TabBtn, true)
+		refreshEmpty()
+	end
+
+	TabBtn.Activated:Connect(function()
+		if TabDrag.suppress[TabBtn] or TabDrag.dragging then
+			return
+		end
+		for i, p in ipairs(TabContainers) do
+			p.Parent = nil
+			SetTabActive(TabButtons[i], false)
+		end
+		Page.Parent = Containers
+		SetTabActive(TabBtn, true)
+		refreshEmpty()
+	end)
+
+	local Tab = {}
+
+	function Tab:AddButton(Configs)
+		local name = Configs[1] or "Button"
+		local cb = Configs.Callback or Configs[2] or function() end
+		local btn = ButtonFrame(Page, name, Configs.Desc or Configs.Description, UDim2.new(1, -36))
+		local arrow = Create("TextLabel", btn, {
+			Size = UDim2.new(0, 14, 0, 14),
+			Position = UDim2.new(1, -12, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundTransparency = 1,
+			Text = ">",
+			TextColor3 = ThemeColors.SoftWhite,
+			TextSize = 12,
+			FontFace = UIFontFace,
+			ZIndex = 16
+		})
+		btn.Activated:Connect(function()
+			Tween(arrow, { TextColor3 = ThemeColors.PureWhite }, 0.08)
+			task.delay(0.1, function()
+				Tween(arrow, { TextColor3 = ThemeColors.SoftWhite }, 0.16)
+			end)
+			if type(cb) == "function" then
+				cb()
+			end
+		end)
+		return btn
+	end
+
+	function Tab:AddToggle(Configs)
+		local name = Configs[1] or "Toggle"
+		local default = Configs[2] or false
+		local cb = Configs.Callback or Configs[3] or function() end
+		local frame = ButtonFrame(Page, name, nil, UDim2.new(1, -50))
+
+		local toggle = Create("Frame", {
+			Parent = frame,
+			Size = UDim2.new(0, 32, 0, 16),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundColor3 = default and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(50, 50, 50),
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](toggle, UDim.new(1, 0))
+		ApplyMetallicBorder(toggle, 1.6)
+
+		local dot = Create("Frame", {
+			Parent = toggle,
+			Size = UDim2.new(0, 12, 0, 12),
+			Position = default and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundColor3 = default and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(255, 255, 255),
+			ZIndex = 16
+		})
+		redzlib.Elements["Corner"](dot, UDim.new(1, 0))
+
+		local state = default
+		local function set(v)
+			state = v
+			Tween(toggle, { BackgroundColor3 = state and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(50, 50, 50) }, 0.18)
+			dot:TweenPosition(state and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0), "Out", "Quart", 0.2, true)
+			Tween(dot, { BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(255, 255, 255) }, 0.18)
+		end
+
+		frame.Activated:Connect(function()
+			set(not state)
+			if type(cb) == "function" then
+				cb(state)
+			end
+		end)
+		return { SetToggle = set }
+	end
+
+	function Tab:AddSlider(Configs)
+		local name = Configs[1] or "Slider"
+		local min = Configs[2] or 1
+		local max = Configs[3] or 100
+		local default = Configs[5] or 25
+		local cb = Configs.Callback or Configs[6] or function() end
+
+		local btn = ButtonFrame(Page, name, nil, UDim2.new(1, -180))
+
+		local bar = Create("Frame", {
+			Parent = btn,
+			BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+			Size = UDim2.new(0, 120, 0, 6),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](bar, UDim.new(1, 0))
+		ApplyMetallicBorder(bar, 1.5)
+
+		local fill = Create("Frame", {
+			Parent = bar,
+			BackgroundColor3 = Theme["Color Stroke"],
+			Size = UDim2.fromScale((default - min) / math.max(max - min, 1), 1),
+			ZIndex = 16
+		})
+		redzlib.Elements["Corner"](fill, UDim.new(1, 0))
+
+		local icon = Create("Frame", {
+			Parent = bar,
+			Size = UDim2.new(0, 11, 0, 11),
+			BackgroundColor3 = Color3.fromRGB(230, 230, 230),
+			Position = UDim2.fromScale((default - min) / math.max(max - min, 1), 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			ZIndex = 17
+		})
+		redzlib.Elements["Corner"](icon, UDim.new(1, 0))
+		ApplyMetallicBorder(icon, 1)
+
+		local label = Create("TextLabel", {
+			Parent = btn,
+			Size = UDim2.new(0, 40, 0, 14),
+			Position = UDim2.new(1, -140, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Text = tostring(default),
+			TextColor3 = Theme["Color Text"],
+			FontFace = UIFontFace,
+			TextSize = 10,
+			BackgroundTransparency = 1,
+			ZIndex = 15
+		})
+
+		local function updateSlider(input)
+			local ratio = math.clamp((input.Position.X - bar.AbsolutePosition.X) / math.max(bar.AbsoluteSize.X, 1), 0, 1)
+			local val = math.floor(min + (ratio * (max - min)))
+			label.Text = tostring(val)
+			icon.Position = UDim2.fromScale(ratio, 0.5)
+			fill.Size = UDim2.fromScale(ratio, 1)
+			if type(cb) == "function" then
+				cb(val)
+			end
+		end
+
+		local allowedInputs = { Enum.UserInputType.MouseButton1, Enum.UserInputType.Touch }
+		local activeInput = nil
+		bar.InputBegan:Connect(function(input)
+			if table.find(allowedInputs, input.UserInputType) then
+				activeInput = input
+				updateSlider(input)
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if input == activeInput then
+				updateSlider(input)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if input == activeInput then
+				activeInput = nil
+			end
+		end)
+		return btn
+	end
+
+	function Tab:AddTextBox(Configs)
+		local name = Configs[1] or "Text Box"
+		local default = Configs[2] or ""
+		local placeholder = Configs.Placeholder or "اكتب هنا..."
+		local cb = Configs.Callback or Configs[4] or function() end
+
+		local btn = ButtonFrame(Page, name, nil, UDim2.new(1, -38))
+		local boxFrame = Create("Frame", {
+			Parent = btn,
+			Size = UDim2.new(0, 150, 0, 18),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundColor3 = Color3.fromRGB(22, 22, 22),
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](boxFrame, UDim.new(0, 5))
+		ApplyMetallicBorder(boxFrame, 1.6)
+
+		local box = Create("TextBox", {
+			Parent = boxFrame,
+			Size = UDim2.new(0.9, 0, 0.85, 0),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Text = default,
+			PlaceholderText = placeholder,
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			FontFace = UIFontFace,
+			TextSize = 11,
+			ClearTextOnFocus = false,
+			ZIndex = 16
+		})
+
+		box.FocusLost:Connect(function()
+			if type(cb) == "function" then
+				cb(box.Text)
+			end
+		end)
+		return btn
+	end
+
+	function Tab:AddDropdown(Configs)
+		local title = Configs.Title or "Dropdown"
+		local options = Configs.Options or {}
+		local cb = Configs.Callback or function() end
+		local selected = options[1] or ""
+
+		local btn = ButtonFrame(Page, title, nil, UDim2.new(1, -80))
+		local valueLabel = Create("TextLabel", {
+			Parent = btn,
+			Size = UDim2.new(0, 70, 0, 20),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Text = selected,
+			TextColor3 = Theme["Color Text"],
+			FontFace = UIFontFace,
+			TextSize = 10,
+			BackgroundColor3 = ThemeColors.ButtonNormal,
+			BackgroundTransparency = 0.2,
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](valueLabel, UDim.new(0, 6))
+		ApplyMetallicBorder(valueLabel, 1.6)
+
+		local dropdownFrame = Create("Frame", {
+			Parent = Page,
+			Size = UDim2.new(1, -20, 0, 0),
+			BackgroundColor3 = ThemeColors.DarkPanel,
+			Visible = false,
+			ClipsDescendants = true,
+			AutomaticSize = "Y",
+			ZIndex = 50
+		})
+		redzlib.Elements["Corner"](dropdownFrame, UDim.new(0, 6))
+		ApplyMetallicBorder(dropdownFrame, 1.8)
+		Create("UIListLayout", dropdownFrame, { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder })
+		Create("UIPadding", dropdownFrame, {
+			PaddingLeft = UDim.new(0, 5),
+			PaddingRight = UDim.new(0, 5),
+			PaddingTop = UDim.new(0, 5),
+			PaddingBottom = UDim.new(0, 5)
+		})
+
+		local function refresh(opts)
+			for _, child in ipairs(dropdownFrame:GetChildren()) do
+				if child:IsA("TextButton") then
+					child:Destroy()
+				end
+			end
+			for _, opt in ipairs(opts) do
+				local b = Create("TextButton", dropdownFrame, {
+					Size = UDim2.new(1, 0, 0, 24),
+					Text = opt,
+					BackgroundColor3 = ThemeColors.ButtonNormal,
+					AutoButtonColor = false,
+					TextColor3 = Theme["Color Text"],
+					FontFace = UIFontFace,
+					TextSize = 10,
+					ZIndex = 51
+				})
+				redzlib.Elements["Corner"](b, UDim.new(0, 5))
+				ApplyMetallicBorder(b, 1.5)
+				StyleInteractive(b)
+				b.Activated:Connect(function()
+					selected = opt
+					valueLabel.Text = opt
+					dropdownFrame.Visible = false
+					if type(cb) == "function" then
+						cb(opt)
+					end
+				end)
+			end
+			dropdownFrame.Size = UDim2.new(1, -20, 0, #opts * 26 + 10)
+		end
+		refresh(options)
+
+		btn.Activated:Connect(function()
+			dropdownFrame.Visible = not dropdownFrame.Visible
+			if dropdownFrame.Visible then
+				dropdownFrame.Size = UDim2.new(1, -20, 0, #options * 26 + 10)
+			end
+		end)
+
+		local dropdownObj = {}
+		function dropdownObj:Refresh(opts)
+			options = opts
+			refresh(opts)
+			valueLabel.Text = opts[1] or ""
+			selected = opts[1] or ""
+		end
+		return dropdownObj
+	end
+
+	return Tab
+end
+
+local HubSequenceReady = false
+local WantShowHub = false
+
+local function ShowMainHub()
+	if not HubSequenceReady then
+		WantShowHub = true
+		return
+	end
+	ToggleButton.Visible = true
+	MainHubFrame.Visible = true
+	PlayMusic()
+	CreateNotification("Avarice Scythe loaded", 5)
+	task.delay(5.5, function()
+		CreateNotification("أنت الآن تستخدم سكربت AVARICE SCYTHE", 5)
+	end)
+end
+
+HubSequenceReady = true
+task.defer(function()
+	ShowMainHub()
+end)
+
+local Library = {
+	CreateTab = CreateTab,
+	Notify = CreateNotification,
+	Window = Window,
+	Show = ShowMainHub,
+	Frame = MainHubFrame,
+	Gui = ScreenGuiHub
+}
+
+return Library
