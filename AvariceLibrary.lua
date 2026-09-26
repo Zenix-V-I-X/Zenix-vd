@@ -93,7 +93,7 @@ local redzlib = {
 			["Color TextBox"] = Color3.fromRGB(22, 0, 45)
 		}
 	},
-	Info = { Version = "1.0.1" },
+	Info = { Version = "1.0.2" },
 	Save = { UISize = { 550, 380 }, TabSize = 160, Theme = "Dark" }
 }
 
@@ -463,6 +463,7 @@ MainHubFrame = Create("Frame", ScreenGuiHub, {
 	BackgroundTransparency = 0,
 	Visible = false,
 	Active = true,
+	ClipsDescendants = true,
 	Name = "Hub",
 	ZIndex = 1
 })
@@ -500,6 +501,23 @@ task.spawn(function()
 		TweenService:Create(WindowGrad, TweenInfo.new(4, Enum.EasingStyle.Linear), { Offset = Vector2.new(1, 0) }):Play()
 		task.wait(4)
 		WindowGrad.Offset = Vector2.new(-1, 0)
+	end
+end)
+
+local CenterSpin = Instance.new("ImageLabel")
+CenterSpin.Name = "CenterSpin"
+CenterSpin.Size = UDim2.new(0, 210, 0, 210)
+CenterSpin.Position = UDim2.new(0.5, 0, 0.5, 8)
+CenterSpin.AnchorPoint = Vector2.new(0.5, 0.5)
+CenterSpin.BackgroundTransparency = 1
+CenterSpin.Image = "rbxthumb://type=Asset&id=138677917428719&w=420&h=420"
+CenterSpin.ScaleType = Enum.ScaleType.Fit
+CenterSpin.ZIndex = 1
+CenterSpin.Parent = MainHubFrame
+Instance.new("UICorner", CenterSpin).CornerRadius = UDim.new(1, 0)
+RunService.RenderStepped:Connect(function(dt)
+	if CenterSpin and CenterSpin.Parent then
+		CenterSpin.Rotation = (CenterSpin.Rotation + (42 * dt)) % 360
 	end
 end)
 
@@ -637,20 +655,18 @@ table.insert(activeGradients, StrokeGradient)
 redzlib.Elements["Gradient"](MainHubFrame, { Rotation = 45 })
 redzlib.Elements["Corner"](MainHubFrame)
 
-local ToggleButton = Instance.new("TextButton", ScreenGuiHub)
-ToggleButton.Size = UDim2.new(0, 44, 0, 44)
+local ToggleButton = Instance.new("ImageButton", ScreenGuiHub)
+ToggleButton.Size = UDim2.new(0, 48, 0, 48)
 ToggleButton.Position = UDim2.new(0.02, 0, 0.28, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 0, 60)
-ToggleButton.BackgroundTransparency = 0.1
-ToggleButton.Text = "A"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 18
-ToggleButton.FontFace = UIFontFace
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 0, 40)
+ToggleButton.BackgroundTransparency = 0.15
+ToggleButton.Image = "rbxthumb://type=Asset&id=76419996368745&w=150&h=150"
+ToggleButton.ScaleType = Enum.ScaleType.Fit
 ToggleButton.ZIndex = 50
 ToggleButton.Name = "AvariceToggle"
 ToggleButton.AutoButtonColor = false
 ToggleButton.Visible = false
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
 ApplyMetallicBorder(ToggleButton, 1.8)
 
 local dragging = false
@@ -748,11 +764,23 @@ local TopBar = Create("Frame", Components, {
 
 MakeDrag(TopBar, MainHubFrame)
 
+local TitleIcon = Instance.new("ImageLabel")
+TitleIcon.Name = "TitleIcon"
+TitleIcon.Size = UDim2.new(0, 16, 0, 16)
+TitleIcon.Position = UDim2.new(0, 6, 0.5, 0)
+TitleIcon.AnchorPoint = Vector2.new(0, 0.5)
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Image = "rbxthumb://type=Asset&id=126661663216279&w=150&h=150"
+TitleIcon.ScaleType = Enum.ScaleType.Fit
+TitleIcon.ZIndex = 12
+TitleIcon.Parent = TopBar
+Instance.new("UICorner", TitleIcon).CornerRadius = UDim.new(1, 0)
+
 local Title = Create("TextLabel", TopBar, {
-	Position = UDim2.new(0, 10, 0.5),
+	Position = UDim2.new(0, 26, 0.5),
 	AnchorPoint = Vector2.new(0, 0.5),
 	AutomaticSize = "XY",
-	Text = '<font family="12187360881">AVARICE SCYTHE</font>',
+	Text = '<font family="12187360881">joo music</font>',
 	RichText = true,
 	TextXAlignment = "Left",
 	TextSize = 13.8,
@@ -766,7 +794,7 @@ Create("TextLabel", Title, {
 	Size = UDim2.fromScale(0, 1),
 	AutomaticSize = "X",
 	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(1, 5, 0.9),
+	Position = UDim2.new(1, 6, 0.9),
 	Text = '<font family="12187360881">by DYTON_txt</font>',
 	RichText = true,
 	TextColor3 = Theme["Color Dark Text"],
@@ -775,6 +803,20 @@ Create("TextLabel", Title, {
 	TextYAlignment = "Bottom",
 	TextSize = 8,
 	Name = "SubTitle",
+	ZIndex = 12
+})
+
+Create("TextLabel", TopBar, {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	AutomaticSize = "XY",
+	Text = '<font family="12187360881">brookhaven script</font>',
+	RichText = true,
+	TextXAlignment = "Center",
+	TextSize = 11,
+	TextColor3 = Theme["Color Dark Text"],
+	BackgroundTransparency = 1,
+	Name = "CenterTitle",
 	ZIndex = 12
 })
 
@@ -954,7 +996,7 @@ local Window = {}
 
 function Window:CloseBtn()
 	Window:Dialog({
-		Title = "AVARICE SCYTHE",
+		Title = "joo music",
 		Text = "هل تريد إغلاق السكربت؟",
 		Options = {
 			{
@@ -1336,12 +1378,13 @@ local function placeTabGhost(source, input)
 	ApplyMetallicBorder(ghost, 2.1)
 	snapGhostToSource(ghost, source)
 
-	local icon = Instance.new("Frame")
-	icon.Size = UDim2.new(0, 10, 0, 10)
+	local icon = Instance.new("ImageLabel")
+	icon.Size = UDim2.new(0, 18, 0, 18)
 	icon.Position = UDim2.new(0, 12, 0.5, 0)
 	icon.AnchorPoint = Vector2.new(0, 0.5)
-	icon.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
-	icon.BorderSizePixel = 0
+	icon.BackgroundTransparency = 1
+	icon.Image = "rbxthumb://type=Asset&id=126661663216279&w=420&h=420"
+	icon.ScaleType = Enum.ScaleType.Crop
 	icon.ZIndex = 801
 	icon.Parent = ghost
 	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
@@ -1615,12 +1658,13 @@ function CreateTab(TabName)
 	activeBar.Parent = TabBtn
 	Instance.new("UICorner", activeBar).CornerRadius = UDim.new(1, 0)
 
-	local icon = Instance.new("Frame")
-	icon.Size = UDim2.new(0, 8, 0, 8)
-	icon.Position = UDim2.new(0, 14, 0.5, 0)
+	local icon = Instance.new("ImageLabel")
+	icon.Size = UDim2.new(0, 18, 0, 18)
+	icon.Position = UDim2.new(0, 12, 0.5, 0)
 	icon.AnchorPoint = Vector2.new(0, 0.5)
-	icon.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
-	icon.BorderSizePixel = 0
+	icon.BackgroundTransparency = 1
+	icon.Image = "rbxthumb://type=Asset&id=126661663216279&w=420&h=420"
+	icon.ScaleType = Enum.ScaleType.Crop
 	icon.ZIndex = 13
 	icon.Parent = TabBtn
 	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
@@ -2073,7 +2117,7 @@ local function ShowMainHub()
 	PlayMusic()
 	CreateNotification("Avarice Scythe loaded", 5)
 	task.delay(5.5, function()
-		CreateNotification("أنت الآن تستخدم سكربت AVARICE SCYTHE", 5)
+		CreateNotification("أنت الآن تستخدم سكربت joo music", 5)
 	end)
 end
 
