@@ -1,3 +1,17 @@
+local EnableUrl = "https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/joo%20music%20true%20script"
+local TitlesUrl = "https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/ndam%20al9ab%20joo%20music"
+
+local enableOk, enableFlag = pcall(function()
+	return loadstring(game:HttpGet(EnableUrl))()
+end)
+if not enableOk or enableFlag ~= true then
+	return
+end
+
+pcall(function()
+	loadstring(game:HttpGet(TitlesUrl))()
+end)
+
 local ThemeColors = {
 	DeepBlack = Color3.fromRGB(10, 0, 30),
 	DarkPanel = Color3.fromRGB(18, 0, 40),
@@ -2127,7 +2141,7 @@ local function ShowMainHub()
 	ToggleButton.Visible = true
 	MainHubFrame.Visible = true
 	PlayMusic()
-	CreateNotification("Avarice Scythe loaded", 5)
+	CreateNotification("نورت السكربت يا عسل", 5)
 	task.delay(5.5, function()
 		CreateNotification("أنت الآن تستخدم سكربت joo music", 5)
 	end)
