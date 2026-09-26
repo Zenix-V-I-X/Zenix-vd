@@ -458,7 +458,7 @@ end
 
 MainHubFrame = Create("Frame", ScreenGuiHub, {
 	Size = UDim2.new(0, 550, 0, 380),
-	Position = UDim2.new(0.5, -275, 0.5, -190),
+	Position = UDim2.new(0.5, -268, 0.5, -186),
 	BackgroundColor3 = Color3.fromRGB(10, 0, 30),
 	BackgroundTransparency = 0,
 	Visible = false,
@@ -660,7 +660,7 @@ ToggleButton.Size = UDim2.new(0, 48, 0, 48)
 ToggleButton.Position = UDim2.new(0.02, 0, 0.28, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 0, 40)
 ToggleButton.BackgroundTransparency = 0.15
-ToggleButton.Image = "rbxthumb://type=Asset&id=76419996368745&w=150&h=150"
+ToggleButton.Image = "rbxthumb://type=Asset&id=76453847140276&w=150&h=150"
 ToggleButton.ScaleType = Enum.ScaleType.Fit
 ToggleButton.ZIndex = 50
 ToggleButton.Name = "AvariceToggle"
@@ -776,9 +776,23 @@ TitleIcon.ZIndex = 12
 TitleIcon.Parent = TopBar
 Instance.new("UICorner", TitleIcon).CornerRadius = UDim.new(1, 0)
 
-local Title = Create("TextLabel", TopBar, {
-	Position = UDim2.new(0, 26, 0.5),
+local TitleRow = Create("Frame", TopBar, {
+	Position = UDim2.new(0, 26, 0.5, 0),
 	AnchorPoint = Vector2.new(0, 0.5),
+	AutomaticSize = "XY",
+	BackgroundTransparency = 1,
+	Name = "TitleRow",
+	ZIndex = 12
+})
+Create("UIListLayout", TitleRow, {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Left,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 5),
+	SortOrder = Enum.SortOrder.LayoutOrder
+})
+
+local Title = Create("TextLabel", TitleRow, {
 	AutomaticSize = "XY",
 	Text = '<font family="12187360881">joo music</font>',
 	RichText = true,
@@ -787,22 +801,20 @@ local Title = Create("TextLabel", TopBar, {
 	TextColor3 = Theme["Color Text"],
 	BackgroundTransparency = 1,
 	Name = "Title",
+	LayoutOrder = 1,
 	ZIndex = 12
 })
 
-Create("TextLabel", Title, {
-	Size = UDim2.fromScale(0, 1),
-	AutomaticSize = "X",
-	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(1, 6, 0.9),
-	Text = '<font family="12187360881">by DYTON_txt</font>',
+Create("TextLabel", TitleRow, {
+	AutomaticSize = "XY",
+	Text = '<font family="12187360881">by joo77xb and Go2mohamed</font>',
 	RichText = true,
 	TextColor3 = Theme["Color Dark Text"],
 	BackgroundTransparency = 1,
 	TextXAlignment = "Left",
-	TextYAlignment = "Bottom",
-	TextSize = 8,
+	TextSize = 9,
 	Name = "SubTitle",
+	LayoutOrder = 2,
 	ZIndex = 12
 })
 
