@@ -1,17 +1,3 @@
-local EnableUrl = "https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/joo%20music%20true%20script"
-local TitlesUrl = "https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/ndam%20al9ab%20joo%20music"
-
-local enableOk, enableFlag = pcall(function()
-	return loadstring(game:HttpGet(EnableUrl))()
-end)
-if not enableOk or enableFlag ~= true then
-	return
-end
-
-pcall(function()
-	loadstring(game:HttpGet(TitlesUrl))()
-end)
-
 local ThemeColors = {
 	DeepBlack = Color3.fromRGB(10, 0, 30),
 	DarkPanel = Color3.fromRGB(18, 0, 40),
@@ -529,48 +515,9 @@ CenterSpin.ScaleType = Enum.ScaleType.Fit
 CenterSpin.ZIndex = 1
 CenterSpin.Parent = MainHubFrame
 Instance.new("UICorner", CenterSpin).CornerRadius = UDim.new(1, 0)
-
-local spinLifted = false
-local spinLiftOffset = Vector2.new(0, 0)
-
-local function getHubScale()
-	local scaleObj = ScreenGuiHub and ScreenGuiHub:FindFirstChild("Scale")
-	return (scaleObj and scaleObj.Scale) or 1
-end
-
-local function attachSpinInside()
-	spinLifted = false
-	CenterSpin.Parent = MainHubFrame
-	CenterSpin.AnchorPoint = Vector2.new(0.5, 0.5)
-	CenterSpin.Position = UDim2.new(0.5, 0, 0.5, 8)
-	CenterSpin.Size = UDim2.new(0, 210, 0, 210)
-	CenterSpin.ZIndex = 1
-end
-
-local function detachSpinOutside()
-	local scale = getHubScale()
-	local center = CenterSpin.AbsolutePosition + (CenterSpin.AbsoluteSize * 0.5)
-	local hubPos = MainHubFrame.AbsolutePosition
-	spinLiftOffset = Vector2.new((center.X - hubPos.X) / scale, (center.Y - hubPos.Y) / scale)
-	CenterSpin.Parent = ScreenGuiHub
-	CenterSpin.AnchorPoint = Vector2.new(0.5, 0.5)
-	CenterSpin.Size = UDim2.new(0, 210, 0, 210)
-	CenterSpin.Position = UDim2.fromOffset(center.X / scale, center.Y / scale)
-	CenterSpin.ZIndex = 400
-	spinLifted = true
-end
-
 RunService.RenderStepped:Connect(function(dt)
 	if CenterSpin and CenterSpin.Parent then
 		CenterSpin.Rotation = (CenterSpin.Rotation + (42 * dt)) % 360
-		if spinLifted and MainHubFrame and MainHubFrame.Parent then
-			local scale = getHubScale()
-			local hubPos = MainHubFrame.AbsolutePosition
-			CenterSpin.Position = UDim2.fromOffset(
-				(hubPos.X / scale) + spinLiftOffset.X,
-				(hubPos.Y / scale) + spinLiftOffset.Y
-			)
-		end
 	end
 end)
 
@@ -1097,10 +1044,8 @@ function Window:MinimizeBtn()
 		MinimizeButton.Text = "-"
 		CreateTween({ MainHubFrame, "Size", SaveSize, 0.25, true })
 		Minimized = false
-		attachSpinInside()
 		SetExtraChrome(true)
 	else
-		detachSpinOutside()
 		MinimizeButton.Text = "+"
 		SaveSize = MainHubFrame.Size
 		SetExtraChrome(false)
@@ -1115,13 +1060,13 @@ function Window:Dialog(Configs)
 	local DText = Configs.Text or ""
 	local DOptions = Configs.Options or {}
 
-	local Screen = Create("Frame", MainHubFrame, {
-		BackgroundTransparency = 1,
+	local Screen = Create("Frame", ScreenGuiHub, {
+		BackgroundTransparency = 0.35,
 		Active = true,
 		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 		Size = UDim2.new(1, 0, 1, 0),
 		Name = "Dialog",
-		ZIndex = 100
+		ZIndex = 500
 	})
 
 	local Frame = Create("Frame", Screen, {
