@@ -248,7 +248,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		TextSize = 11,
 		TextXAlignment = "Left",
 		Text = "",
-		RichText = true,
+		RichText = false,
 		ZIndex = 15
 	})
 	local DescL = Create("TextLabel", {
@@ -263,7 +263,7 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 		TextSize = 11,
 		TextXAlignment = "Left",
 		Text = "",
-		RichText = true,
+		RichText = false,
 		ZIndex = 15
 	})
 	local Frame = Create("TextButton", Container, {
@@ -306,8 +306,10 @@ local function ButtonFrame(Container, Title, Description, HolderSize)
 
 	local Label = {}
 	function Label:SetTitle(t)
-		if type(t) == "string" and t:gsub(" ", ""):len() > 0 then
-			TitleL.Text = '<font family="12187360881">' .. t .. "</font>"
+		if type(t) == "string" then
+			TitleL.Text = t
+		else
+			TitleL.Text = ""
 		end
 	end
 	function Label:SetDesc(d)
@@ -1420,8 +1422,8 @@ local function placeTabGhost(source, input)
 	label.Size = UDim2.new(1, -34, 1, 0)
 	label.Position = UDim2.new(0, 31, 0, 0)
 	label.BackgroundTransparency = 1
-	label.Text = '<font family="12187360881">' .. tabName .. "</font>"
-	label.RichText = true
+	label.Text = tabName
+	label.RichText = false
 	label.TextColor3 = Theme["Color Text"]
 	label.FontFace = UIFontFace
 	label.TextSize = 11
@@ -1654,11 +1656,18 @@ local function ReadConfig(Configs, ...)
 	end
 end
 
-function CreateTab(TabName)
-	if type(TabName) == "table" then
-		TabName = TabName.Title or TabName.Name or TabName[1] or "Tab"
+function CreateTab(TabName, Extra)
+	if type(TabName) == "table" and (TabName.CreateTab or TabName.MakeTab or TabName.Gui or TabName.Frame or TabName.CloseBtn or TabName.Dialog) and Extra ~= nil then
+		TabName = Extra
 	end
-	TabName = tostring(TabName or "Tab")
+	if type(TabName) == "table" then
+		TabName = TabName.Title or TabName.Name or TabName.Text or TabName[1]
+	end
+	if TabName == nil then
+		TabName = ""
+	else
+		TabName = tostring(TabName)
+	end
 	local TabBtn = Create("TextButton", {
 		Parent = MainScroll,
 		Size = UDim2.new(1, 0, 0, 26),
@@ -1699,13 +1708,14 @@ function CreateTab(TabName)
 		Parent = TabBtn,
 		Size = UDim2.new(1, -34, 1, 0),
 		Position = UDim2.new(0, 31, 0, 0),
-		Text = '<font family="12187360881">' .. TabName .. "</font>",
+		Text = TabName,
 		TextColor3 = Theme["Color Text"],
 		FontFace = UIFontFace,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		BackgroundTransparency = 1,
-		RichText = true,
+		RichText = false,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		ZIndex = 13
 	})
 
@@ -2143,7 +2153,7 @@ local function ShowMainHub()
 	PlayMusic()
 	CreateNotification("نورت السكربت يا عسل", 5)
 	task.delay(5.5, function()
-		CreateNotification("أنت الآن تستخدم سكربت joo music", 5)
+		CreateNotification("لا تنسى تشوف قسم الحقوق ياحلو", 5)
 	end)
 end
 
@@ -2152,8 +2162,12 @@ task.defer(function()
 	ShowMainHub()
 end)
 
+Window.MakeTab = CreateTab
+Window.CreateTab = CreateTab
+
 local Library = {
 	CreateTab = CreateTab,
+	MakeTab = CreateTab,
 	Notify = CreateNotification,
 	Window = Window,
 	Show = ShowMainHub,
