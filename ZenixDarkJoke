@@ -1,5 +1,1666 @@
-local Library = loadstring(game:HttpGet("https://z2vh.lovable.app/raw/npfxivhpu2"))()
-if not Library then return end
+
+local Library
+do
+	local libSrc = [=====[
+local ThemeColors = {
+	DeepBlack = Color3.fromRGB(0, 0, 0),
+	DarkPanel = Color3.fromRGB(10, 10, 10),
+	ButtonNormal = Color3.fromRGB(16, 16, 16),
+	ButtonHover = Color3.fromRGB(46, 46, 46),
+	ButtonPress = Color3.fromRGB(8, 8, 8),
+	MidGray = Color3.fromRGB(120, 120, 120),
+	LightGray = Color3.fromRGB(200, 200, 200),
+	PureWhite = Color3.fromRGB(255, 255, 255),
+	SoftWhite = Color3.fromRGB(235, 235, 235)
+}
+
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local UIFontFace = Font.new("rbxassetid://12187360881")
+local activeGradients = {}
+
+local function Tween(obj, props, time, style, dir)
+	local tw = TweenService:Create(
+		obj,
+		TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out),
+		props
+	)
+	tw:Play()
+	return tw
+end
+
+local function ApplyMetallicBorder(parentElement, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = ThemeColors.PureWhite
+	stroke.Thickness = thickness or 2.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.LineJoinMode = Enum.LineJoinMode.Round
+	stroke.Parent = parentElement
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, ThemeColors.PureWhite),
+		ColorSequenceKeypoint.new(0.25, ThemeColors.MidGray),
+		ColorSequenceKeypoint.new(0.5, ThemeColors.DeepBlack),
+		ColorSequenceKeypoint.new(0.75, ThemeColors.MidGray),
+		ColorSequenceKeypoint.new(1, ThemeColors.PureWhite)
+	})
+	gradient.Rotation = math.random(0, 359)
+	gradient.Parent = stroke
+	table.insert(activeGradients, gradient)
+	return stroke, gradient
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	for i = #activeGradients, 1, -1 do
+		local gradient = activeGradients[i]
+		if gradient and gradient.Parent then
+			gradient.Rotation = (gradient.Rotation + (100 * dt)) % 360
+		else
+			table.remove(activeGradients, i)
+		end
+	end
+end)
+
+local Player = Players.LocalPlayer
+if not Player then
+	Players.PlayerAdded:Wait()
+	Player = Players.LocalPlayer
+end
+local playerGui = Player:WaitForChild("PlayerGui")
+local MainHubFrame, ScreenGuiHub
+
+if playerGui:FindFirstChild("ZenixDarkJoker_Final_Version") then
+	playerGui.ZenixDarkJoker_Final_Version:Destroy()
+end
+
+local redzlib = {
+	Themes = {
+		Dark = {
+			["Color Hub 1"] = ColorSequence.new({
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 0, 0)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(15, 15, 15)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 30, 30))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(0, 0, 0),
+			["Color Stroke"] = Color3.fromRGB(255, 255, 255),
+			["Color Theme"] = Color3.fromRGB(0, 0, 0),
+			["Color Text"] = Color3.fromRGB(255, 255, 255),
+			["Color Dark Text"] = Color3.fromRGB(200, 200, 200),
+			["Color Button"] = Color3.fromRGB(22, 22, 22),
+			["Color TextBox"] = Color3.fromRGB(28, 28, 28)
+		}
+	},
+	Info = { Version = "1.3.3" },
+	Save = { UISize = { 480, 370 }, TabSize = 160, Theme = "Dark" }
+}
+
+local ViewportSize = workspace.CurrentCamera.ViewportSize
+local UIScale = ViewportSize.Y / 450
+local Theme = redzlib.Themes[redzlib.Save.Theme]
+
+local function SetProps(Instance, Props)
+	if Props then
+		for prop, value in Props do
+			Instance[prop] = value
+		end
+	end
+	return Instance
+end
+
+local function SetChildren(Instance, Children)
+	if Children then
+		for _, Child in Children do
+			Child.Parent = Instance
+		end
+	end
+	return Instance
+end
+
+local function Create(Class, ...)
+	local args = { ... }
+	local new = Instance.new(Class)
+	if type(args[1]) == "table" then
+		SetProps(new, args[1])
+		SetChildren(new, args[2])
+	elseif typeof(args[1]) == "Instance" then
+		new.Parent = args[1]
+		SetProps(new, args[2])
+		SetChildren(new, args[3])
+	end
+	return new
+end
+
+local WindowDraggingBlocked = false
+
+local function MakeDrag(handle, target)
+	target = target or handle
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	handle.InputBegan:Connect(function(input)
+		if WindowDraggingBlocked then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = target.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if WindowDraggingBlocked then
+			dragging = false
+			return
+		end
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			target.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + (delta.X / UIScale),
+				startPos.Y.Scale,
+				startPos.Y.Offset + (delta.Y / UIScale)
+			)
+		end
+	end)
+	return handle
+end
+
+local function StyleInteractive(frame)
+	frame.BackgroundColor3 = ThemeColors.ButtonNormal
+	if frame:IsA("GuiButton") then
+		frame.AutoButtonColor = false
+	end
+	local hovering = false
+	frame.MouseEnter:Connect(function()
+		hovering = true
+		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonHover }, 0.16)
+	end)
+	frame.MouseLeave:Connect(function()
+		hovering = false
+		Tween(frame, { BackgroundColor3 = ThemeColors.ButtonNormal }, 0.16)
+	end)
+	if frame:IsA("GuiButton") then
+		frame.MouseButton1Down:Connect(function()
+			Tween(frame, { BackgroundColor3 = ThemeColors.ButtonPress }, 0.08)
+		end)
+		frame.MouseButton1Up:Connect(function()
+			Tween(frame, { BackgroundColor3 = hovering and ThemeColors.ButtonHover or ThemeColors.ButtonNormal }, 0.12)
+		end)
+	end
+end
+
+redzlib.Elements = {}
+redzlib.Elements["Corner"] = function(parent, CornerRadius)
+	return Create("UICorner", parent, { CornerRadius = CornerRadius or UDim.new(0, 15) })
+end
+redzlib.Elements["Gradient"] = function(parent, props)
+	return Create("UIGradient", parent, { Color = Theme["Color Hub 1"] })
+end
+
+local function CreateTween(config)
+	local tween = TweenService:Create(config[1], TweenInfo.new(config[4] or 0.5, Enum.EasingStyle.Quint), { [config[2]] = config[3] })
+	tween:Play()
+	if config[5] then
+		tween.Completed:Wait()
+	end
+	return tween
+end
+
+local function ButtonFrame(Container, Title, Description, HolderSize)
+	local TitleL = Create("TextLabel", {
+		FontFace = UIFontFace,
+		TextColor3 = Theme["Color Text"],
+		Size = UDim2.new(1, -20),
+		AutomaticSize = "Y",
+		Position = UDim2.new(0, 0, 0.5),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundTransparency = 1,
+		TextTruncate = "AtEnd",
+		TextSize = 11,
+		TextXAlignment = "Left",
+		Text = "",
+		RichText = true,
+		ZIndex = 15
+	})
+	local DescL = Create("TextLabel", {
+		FontFace = UIFontFace,
+		TextColor3 = Theme["Color Dark Text"],
+		Size = UDim2.new(1, -20),
+		AutomaticSize = "Y",
+		Position = UDim2.new(0, 12, 0, 15),
+		BackgroundTransparency = 1,
+		TextWrapped = true,
+		TextTransparency = 0.28,
+		TextSize = 11,
+		TextXAlignment = "Left",
+		Text = "",
+		RichText = true,
+		ZIndex = 15
+	})
+	local Frame = Create("TextButton", Container, {
+		Size = UDim2.new(1, -20, 0, 32),
+		AutomaticSize = "Y",
+		Name = "Option",
+		Text = "",
+		BackgroundColor3 = ThemeColors.ButtonNormal,
+		AutoButtonColor = false,
+		ZIndex = 14
+	})
+	redzlib.Elements["Corner"](Frame, UDim.new(0, 8))
+	ApplyMetallicBorder(Frame, 2.1)
+
+	local inner = Instance.new("Frame")
+	inner.Name = "JooInner"
+	inner.Size = UDim2.new(1, -2, 0, 1)
+	inner.Position = UDim2.new(0, 1, 0, 1)
+	inner.BackgroundColor3 = ThemeColors.PureWhite
+	inner.BackgroundTransparency = 0.82
+	inner.BorderSizePixel = 0
+	inner.ZIndex = 15
+	inner.Parent = Frame
+
+	StyleInteractive(Frame)
+
+	local LabelHolder = Create("Frame", Frame, {
+		AutomaticSize = "Y",
+		BackgroundTransparency = 1,
+		Size = HolderSize,
+		Position = UDim2.new(0, 10, 0),
+		AnchorPoint = Vector2.new(0, 0),
+		ZIndex = 15
+	}, {
+		Create("UIListLayout", { SortOrder = "LayoutOrder", VerticalAlignment = "Center", Padding = UDim.new(0, 2) }),
+		Create("UIPadding", { PaddingBottom = UDim.new(0, 6), PaddingTop = UDim.new(0, 6) }),
+		TitleL,
+		DescL
+	})
+
+	local Label = {}
+	function Label:SetTitle(t)
+		if type(t) == "string" and t:gsub(" ", ""):len() > 0 then
+			TitleL.Text = '<font family="12187360881">' .. t .. "</font>"
+		end
+	end
+	function Label:SetDesc(d)
+		if type(d) == "string" and d:gsub(" ", ""):len() > 0 then
+			DescL.Text = d
+			DescL.Visible = true
+			DescL.TextTransparency = 0.28
+			LabelHolder.Position = UDim2.new(0, 10, 0)
+			LabelHolder.AnchorPoint = Vector2.new(0, 0)
+		else
+			DescL.Visible = false
+			DescL.Text = ""
+			LabelHolder.Position = UDim2.new(0, 10, 0.5)
+			LabelHolder.AnchorPoint = Vector2.new(0, 0.5)
+		end
+	end
+	Label:SetTitle(Title)
+	Label:SetDesc(Description)
+	return Frame, Label
+end
+
+local activeNotifications = {}
+function CreateNotification(text, duration)
+	local title = "رسالة المطور"
+	duration = duration or 6
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "ZenixNotify_" .. tick()
+	gui.Parent = playerGui
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 285, 0, 75)
+	frame.Position = UDim2.new(1, 10, 0, 10)
+	frame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+	frame.BorderSizePixel = 0
+	frame.ClipsDescendants = true
+	frame.ZIndex = 100
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+	ApplyMetallicBorder(frame, 1.6)
+	frame.Parent = gui
+
+	local topBorder = Instance.new("Frame")
+	topBorder.Size = UDim2.new(1, 0, 0, 2)
+	topBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	topBorder.BorderSizePixel = 0
+	topBorder.ZIndex = 101
+	topBorder.Parent = frame
+
+	local progressBar = Instance.new("Frame")
+	progressBar.Size = UDim2.new(1, 0, 0, 3)
+	progressBar.Position = UDim2.new(0, 0, 1, -3)
+	progressBar.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+	progressBar.BorderSizePixel = 0
+	progressBar.ZIndex = 101
+	progressBar.Parent = frame
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -16, 0, 24)
+	titleLabel.Position = UDim2.new(0, 8, 0, 6)
+	titleLabel.Text = title
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.TextSize = 13
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.FontFace = UIFontFace
+	titleLabel.ZIndex = 101
+	titleLabel.Parent = frame
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, -16, 0, 22)
+	textLabel.Position = UDim2.new(0, 8, 0, 32)
+	textLabel.Text = text
+	textLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	textLabel.TextSize = 11
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.TextWrapped = true
+	textLabel.BackgroundTransparency = 1
+	textLabel.FontFace = UIFontFace
+	textLabel.ZIndex = 101
+	textLabel.Parent = frame
+
+	task.spawn(function()
+		local startTime = tick()
+		while tick() - startTime < duration and frame.Parent do
+			progressBar.Size = UDim2.new(1 - (tick() - startTime) / duration, 0, 0, 3)
+			task.wait()
+		end
+	end)
+
+	local function RepositionNotifications()
+		local yOffset = 10
+		for i, notif in ipairs(activeNotifications) do
+			if notif.frame and notif.frame.Parent then
+				notif.frame:TweenPosition(UDim2.new(1, -295, 0, yOffset), "Out", "Quad", 0.3, true)
+				yOffset = yOffset + 85
+			end
+		end
+	end
+
+	table.insert(activeNotifications, { frame = frame, gui = gui })
+	RepositionNotifications()
+
+	task.delay(duration, function()
+		if frame.Parent then
+			local targetPos = UDim2.new(1, 20, 0, frame.Position.Y.Offset)
+			frame:TweenPosition(targetPos, "In", "Back", 0.4, true)
+			task.wait(0.4)
+			gui:Destroy()
+		end
+		for i, notif in ipairs(activeNotifications) do
+			if notif.frame == frame then
+				table.remove(activeNotifications, i)
+				break
+			end
+		end
+		RepositionNotifications()
+	end)
+end
+
+ScreenGuiHub = Create("ScreenGui", playerGui, {
+	Name = "ZenixDarkJoker_Final_Version",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+}, { Create("UIScale", { Scale = UIScale, Name = "Scale" }) })
+
+local ScreenFind = playerGui:FindFirstChild(ScreenGuiHub.Name)
+if ScreenFind and ScreenFind ~= ScreenGuiHub then
+	ScreenFind:Destroy()
+end
+
+local MusicIntro = Instance.new("Sound", ScreenGuiHub)
+MusicIntro.SoundId = "rbxassetid://138248399002834"
+MusicIntro.Volume = 0.5
+MusicIntro.Looped = false
+
+local MusicLoop = Instance.new("Sound", ScreenGuiHub)
+MusicLoop.SoundId = "rbxassetid://108485558387341"
+MusicLoop.Volume = 0.5
+MusicLoop.Looped = true
+
+local isMusicPlaying = false
+local function PlayMusic()
+	if not isMusicPlaying then
+		isMusicPlaying = true
+		MusicIntro:Play()
+	end
+end
+
+MusicIntro.Ended:Connect(function()
+	if isMusicPlaying and MainHubFrame and MainHubFrame.Visible then
+		MusicLoop:Play()
+	end
+end)
+
+local function StopMusic()
+	isMusicPlaying = false
+	MusicIntro:Stop()
+	MusicLoop:Stop()
+end
+
+MainHubFrame = Create("ImageLabel", ScreenGuiHub, {
+	Size = UDim2.new(0, 480, 0, 370),
+	Position = UDim2.new(0.5, -240, 0.5, -161),
+	BackgroundTransparency = 1,
+	Visible = false,
+	Active = true,
+	Name = "Hub",
+	ZIndex = 1
+})
+
+local WindowBackground = Create("ImageLabel", MainHubFrame, {
+	Name = "WindowBackground",
+	Size = UDim2.new(1, 0, 1, 0),
+	Position = UDim2.new(0, 0, 0, 0),
+	BackgroundTransparency = 0,
+	Image = "rbxthumb://type=Asset&id=115546808060232&w=420&h=420",
+	ImageTransparency = 0.1,
+	ScaleType = Enum.ScaleType.Crop,
+	ZIndex = 0
+})
+redzlib.Elements["Corner"](WindowBackground, UDim.new(0, 8))
+
+local CloudImage = Instance.new("ImageLabel", MainHubFrame)
+CloudImage.Size = UDim2.new(0, 190, 0, 190)
+CloudImage.Position = UDim2.new(1, -100, 0, -96)
+CloudImage.AnchorPoint = Vector2.new(0.5, 0.5)
+CloudImage.Image = "rbxthumb://type=Asset&id=79765384238686&w=420&h=420"
+CloudImage.BackgroundTransparency = 1
+CloudImage.ZIndex = 0
+CloudImage.Name = "Cloud"
+
+local ParticleContainer = Instance.new("Frame")
+ParticleContainer.Name = "Particles"
+ParticleContainer.Size = UDim2.new(1, -redzlib.Save.TabSize, 1, -28)
+ParticleContainer.Position = UDim2.new(1, 0, 1, 0)
+ParticleContainer.AnchorPoint = Vector2.new(1, 1)
+ParticleContainer.BackgroundTransparency = 1
+ParticleContainer.ClipsDescendants = true
+ParticleContainer.ZIndex = 2
+Instance.new("UICorner", ParticleContainer).CornerRadius = UDim.new(0, 8)
+ParticleContainer.Parent = MainHubFrame
+
+local liveParticles = {}
+local particleConfig = {
+	MaxParticles = 30,
+	SpawnRate = 0.1,
+	SizeMin = 6,
+	SizeMax = 10,
+	SpeedMin = 15,
+	SpeedMax = 25,
+	Lifetime = 6
+}
+local lastParticleSpawn = 0
+
+local function spawnThemeParticle()
+	if #liveParticles >= particleConfig.MaxParticles then
+		return
+	end
+	local area = ParticleContainer.AbsoluteSize
+	if area.X < 12 or area.Y < 12 then
+		return
+	end
+	local size = math.random(particleConfig.SizeMin, particleConfig.SizeMax)
+	local speed = math.random(particleConfig.SpeedMin, particleConfig.SpeedMax)
+	local useWhite = (#liveParticles % 2 == 0)
+	local color = useWhite and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
+	local x = math.random(10, math.max(11, math.floor(area.X - 10)))
+	local y = area.Y + 20
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.fromOffset(size, size)
+	frame.Position = UDim2.fromOffset(x, y)
+	frame.BackgroundColor3 = color
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.ZIndex = 2
+	frame.Parent = ParticleContainer
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(1, 0)
+
+	local glow = Instance.new("Frame")
+	glow.Size = UDim2.new(1, 6, 1, 6)
+	glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	glow.AnchorPoint = Vector2.new(0.5, 0.5)
+	glow.BackgroundColor3 = color
+	glow.BackgroundTransparency = 1
+	glow.BorderSizePixel = 0
+	glow.ZIndex = 1
+	glow.Parent = frame
+	Instance.new("UICorner", glow).CornerRadius = UDim.new(1, 0)
+
+	Tween(frame, { BackgroundTransparency = 0.2 }, 0.8)
+	Tween(glow, { BackgroundTransparency = 0.7 }, 0.8)
+	TweenService:Create(frame, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		BackgroundColor3 = useWhite and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+	}):Play()
+	TweenService:Create(glow, TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+		BackgroundColor3 = useWhite and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+	}):Play()
+
+	table.insert(liveParticles, {
+		Frame = frame,
+		Glow = glow,
+		StartTime = tick(),
+		Speed = speed
+	})
+end
+
+RunService.Heartbeat:Connect(function()
+	if not MainHubFrame.Visible then
+		return
+	end
+	for i = #liveParticles, 1, -1 do
+		local p = liveParticles[i]
+		local age = tick() - p.StartTime
+		if age >= particleConfig.Lifetime or p.Frame.Position.Y.Offset < -20 then
+			Tween(p.Frame, { BackgroundTransparency = 1 }, 0.5)
+			Tween(p.Glow, { BackgroundTransparency = 1 }, 0.5)
+			task.delay(0.5, function()
+				if p.Frame then
+					p.Frame:Destroy()
+				end
+			end)
+			table.remove(liveParticles, i)
+		else
+			local pos = p.Frame.Position
+			p.Frame.Position = UDim2.fromOffset(pos.X.Offset, pos.Y.Offset - p.Speed * 0.016)
+			local life = age / particleConfig.Lifetime
+			if life > 0.8 then
+				p.Frame.BackgroundTransparency = math.clamp(0.2 + (life - 0.8) / 0.2 * 0.8, 0.2, 1)
+			end
+		end
+	end
+	if tick() - lastParticleSpawn >= particleConfig.SpawnRate then
+		lastParticleSpawn = tick()
+		spawnThemeParticle()
+	end
+end)
+
+local Components = Create("Frame", MainHubFrame, {
+	Name = "Components",
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ZIndex = 10
+})
+
+local Stroke = Create("UIStroke", MainHubFrame, {
+	Color = Color3.fromRGB(255, 255, 255),
+	Thickness = 2.5,
+	ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+})
+
+local StrokeGradient = Create("UIGradient", Stroke, {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+	}),
+	Rotation = 0
+})
+table.insert(activeGradients, StrokeGradient)
+
+redzlib.Elements["Gradient"](MainHubFrame, { Rotation = 45 })
+redzlib.Elements["Corner"](MainHubFrame)
+
+local ToggleButton = Instance.new("ImageButton", ScreenGuiHub)
+ToggleButton.Size = UDim2.new(0, 56, 0, 56)
+ToggleButton.Position = UDim2.new(0.02, 0, 0.28, 0)
+ToggleButton.BackgroundTransparency = 1
+ToggleButton.Image = "rbxthumb://type=Asset&id=119083751327719&w=150&h=150"
+ToggleButton.ScaleType = Enum.ScaleType.Fit
+ToggleButton.ZIndex = 50
+ToggleButton.Name = "ZenixToggle"
+ToggleButton.AutoButtonColor = false
+ToggleButton.Visible = false
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
+
+local dragging = false
+local dragInput = nil
+local clickTimer = 0
+local startPos = UDim2.new()
+local dragStart = Vector3.new()
+
+ToggleButton.InputBegan:Connect(function(input)
+	if not dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) then
+		dragging = true
+		dragInput = input
+		startPos = ToggleButton.Position
+		dragStart = input.Position
+		clickTimer = tick()
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input == dragInput then
+		local delta = input.Position - dragStart
+		local scale = ScreenGuiHub.Scale.Scale
+		ToggleButton.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + (delta.X / scale),
+			startPos.Y.Scale,
+			startPos.Y.Offset + (delta.Y / scale)
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if dragging and input == dragInput then
+		dragging = false
+		dragInput = nil
+		local endPos = input.Position
+		if (endPos - dragStart).Magnitude < 15 or (tick() - clickTimer) < 0.2 then
+			MainHubFrame.Visible = not MainHubFrame.Visible
+			if MainHubFrame.Visible then
+				PlayMusic()
+			else
+				StopMusic()
+			end
+		end
+	end
+end)
+
+local resizeHandle = Create("ImageButton", MainHubFrame, {
+	Size = UDim2.new(0, 20, 0, 20),
+	Position = UDim2.new(1, -2, 1, -2),
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundTransparency = 1,
+	Image = "rbxassetid://6031097229",
+	ImageColor3 = Color3.fromRGB(220, 220, 220),
+	Name = "ResizeHandle",
+	ZIndex = 200,
+	Active = true,
+	AutoButtonColor = false
+})
+
+local resizing = false
+local resizeStartPos, resizeStartSize
+
+resizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		resizing = true
+		resizeStartPos = input.Position
+		resizeStartSize = MainHubFrame.AbsoluteSize
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local scale = ScreenGuiHub.Scale.Scale
+		local delta = input.Position - resizeStartPos
+		local newWidth = math.clamp((resizeStartSize.X + delta.X) / scale, 380, 900)
+		local newHeight = math.clamp((resizeStartSize.Y + delta.Y) / scale, 280, 700)
+		MainHubFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		resizing = false
+	end
+end)
+
+local TopBar = Create("Frame", Components, {
+	Size = UDim2.new(1, 0, 0, 28),
+	BackgroundTransparency = 1,
+	Name = "Top Bar",
+	ZIndex = 11
+})
+
+MakeDrag(TopBar, MainHubFrame)
+
+local TitleIcon = Instance.new("ImageLabel")
+TitleIcon.Name = "TitleIcon"
+TitleIcon.Size = UDim2.new(0, 16, 0, 16)
+TitleIcon.Position = UDim2.new(0, 8, 0.5, 0)
+TitleIcon.AnchorPoint = Vector2.new(0, 0.5)
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Image = "rbxthumb://type=Asset&id=83849225265819&w=150&h=150"
+TitleIcon.ScaleType = Enum.ScaleType.Fit
+TitleIcon.ZIndex = 12
+TitleIcon.Parent = TopBar
+
+local Title = Create("TextLabel", TopBar, {
+	Position = UDim2.new(0, 28, 0.5),
+	AnchorPoint = Vector2.new(0, 0.5),
+	AutomaticSize = "XY",
+	Text = '<font family="12187360881">Zenix Dark Joker</font>',
+	RichText = true,
+	TextXAlignment = "Left",
+	TextSize = 13.8,
+	TextColor3 = Theme["Color Text"],
+	BackgroundTransparency = 1,
+	Name = "Title",
+	ZIndex = 12
+})
+
+Create("TextLabel", Title, {
+	Size = UDim2.fromScale(0, 1),
+	AutomaticSize = "X",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(1, 5, 0.9),
+	Text = '<font family="12187360881">by go2mohamed  |  </font><font family="12187360881">BROOKHAVEN SCRIPT</font>',
+	RichText = true,
+	TextColor3 = Theme["Color Dark Text"],
+	BackgroundTransparency = 1,
+	TextXAlignment = "Left",
+	TextYAlignment = "Bottom",
+	TextSize = 8,
+	Name = "SubTitle",
+	ZIndex = 12
+})
+
+local MainScroll = Create("ScrollingFrame", Components, {
+	Size = UDim2.new(0, redzlib.Save.TabSize, 1, -TopBar.Size.Y.Offset),
+	ScrollBarImageColor3 = Theme["Color Theme"],
+	Position = UDim2.new(0, 0, 1, 0),
+	AnchorPoint = Vector2.new(0, 1),
+	ScrollBarThickness = 1.5,
+	BackgroundTransparency = 1,
+	ScrollBarImageTransparency = 0.2,
+	CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = "Y",
+	ScrollingDirection = "Y",
+	BorderSizePixel = 0,
+	Name = "Tab Scroll",
+	ZIndex = 11
+}, {
+	Create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10) }),
+	Create("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder, Name = "TabList" })
+})
+
+local Containers = Create("Frame", Components, {
+	Size = UDim2.new(1, -MainScroll.Size.X.Offset, 1, -TopBar.Size.Y.Offset),
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ClipsDescendants = true,
+	Name = "Containers",
+	ZIndex = 11
+})
+
+local DEFAULT_TAB_SIZE = redzlib.Save.TabSize or 160
+local currentTabSize = DEFAULT_TAB_SIZE
+
+local TabResetBtn = Create("ImageButton", MainHubFrame, {
+	Size = UDim2.new(0, 18, 0, 18),
+	Position = UDim2.new(0, -22, 0, 34),
+	BackgroundColor3 = ThemeColors.DarkPanel,
+	BackgroundTransparency = 0.15,
+	Image = "rbxassetid://10747384394",
+	ImageColor3 = ThemeColors.SoftWhite,
+	Visible = false,
+	AutoButtonColor = false,
+	Name = "TabReset",
+	ZIndex = 80
+})
+Create("UICorner", TabResetBtn, { CornerRadius = UDim.new(1, 0) })
+ApplyMetallicBorder(TabResetBtn, 1.2)
+
+local function ApplyTabPanelSize(width)
+	currentTabSize = math.clamp(width, 110, 280)
+	redzlib.Save.TabSize = currentTabSize
+	MainScroll.Size = UDim2.new(0, currentTabSize, 1, -TopBar.Size.Y.Offset)
+	Containers.Size = UDim2.new(1, -currentTabSize, 1, -TopBar.Size.Y.Offset)
+	if ParticleContainer then
+		ParticleContainer.Size = UDim2.new(1, -currentTabSize, 1, -28)
+	end
+	TabResetBtn.Position = UDim2.new(0, -22, 0, 34)
+	TabResetBtn.Visible = (not Minimized) and currentTabSize > DEFAULT_TAB_SIZE + 4
+	if tabResizeHandle then
+		tabResizeHandle.Position = UDim2.new(0, currentTabSize - 2, 1, -2)
+	end
+end
+
+local tabResizing = false
+local tabResizeStart, tabResizeWidth
+local tabResizeHandle = Create("ImageButton", Components, {
+	Size = UDim2.new(0, 16, 0, 16),
+	Position = UDim2.new(0, currentTabSize - 2, 1, -2),
+	AnchorPoint = Vector2.new(1, 1),
+	BackgroundTransparency = 1,
+	Image = "rbxassetid://6031097229",
+	ImageColor3 = Color3.fromRGB(220, 220, 220),
+	Name = "TabResizeHandle",
+	ZIndex = 40,
+	Active = true,
+	AutoButtonColor = false
+})
+
+tabResizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		tabResizing = true
+		tabResizeStart = input.Position
+		tabResizeWidth = currentTabSize
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if tabResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local scale = ScreenGuiHub.Scale.Scale
+		local delta = (input.Position.X - tabResizeStart.X) / scale
+		ApplyTabPanelSize(tabResizeWidth + delta)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		tabResizing = false
+	end
+end)
+
+TabResetBtn.Activated:Connect(function()
+	ApplyTabPanelSize(DEFAULT_TAB_SIZE)
+end)
+
+local EmptyOverlay = Create("Frame", Containers, {
+	Name = "EmptyOverlay",
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	Visible = false,
+	ZIndex = 20
+})
+Create("TextLabel", EmptyOverlay, {
+	Size = UDim2.new(1, 0, 0, 48),
+	Position = UDim2.new(0.5, 0, 0.5, -16),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	Text = "★",
+	TextColor3 = ThemeColors.SoftWhite,
+	TextSize = 34,
+	ZIndex = 21
+})
+Create("TextLabel", EmptyOverlay, {
+	Size = UDim2.new(1, 0, 0, 24),
+	Position = UDim2.new(0.5, 0, 0.5, 22),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	Text = "the tap is empty",
+	TextColor3 = ThemeColors.LightGray,
+	FontFace = UIFontFace,
+	TextSize = 14,
+	ZIndex = 21
+})
+
+local ButtonsFolder = Create("Folder", TopBar, { Name = "Buttons" })
+local CloseButton = Create("ImageButton", {
+	Size = UDim2.new(0, 21, 0, 21),
+	Position = UDim2.new(1, -10, 0.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundTransparency = 1,
+	Image = "rbxassetid://10747384394",
+	AutoButtonColor = false,
+	Name = "Close",
+	ZIndex = 12
+})
+
+local MinimizeButton = Create("ImageButton", {
+	Size = UDim2.new(0, 21, 0, 21),
+	Position = UDim2.new(1, -35, 0.5),
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundTransparency = 1,
+	Image = "rbxassetid://10734896206",
+	AutoButtonColor = false,
+	Name = "Minimize",
+	ZIndex = 12
+})
+SetChildren(ButtonsFolder, { CloseButton, MinimizeButton })
+
+local function applyTabOrders()
+	for i, btn in ipairs(TabButtons or {}) do
+		btn.LayoutOrder = i
+	end
+end
+
+local Minimized, SaveSize, WaitClick
+local Window = {}
+
+function Window:CloseBtn()
+	Window:Dialog({
+		Title = "Zenix Dark Joker",
+		Text = "هل تريد إغلاق السكربت؟",
+		Options = {
+			{
+				"نعم",
+				function()
+					StopMusic()
+					ScreenGuiHub:Destroy()
+				end
+			},
+			{ "لا" }
+		}
+	})
+end
+
+local function SetExtraChrome(vis)
+	if resizeHandle then
+		resizeHandle.Visible = vis
+	end
+	if tabResizeHandle then
+		tabResizeHandle.Visible = vis
+	end
+	if TabResetBtn then
+		TabResetBtn.Visible = vis and currentTabSize > DEFAULT_TAB_SIZE + 4
+	end
+end
+
+function Window:MinimizeBtn()
+	if WaitClick then
+		return
+	end
+	WaitClick = true
+	if Minimized then
+		MinimizeButton.Image = "rbxassetid://10734896206"
+		CreateTween({ MainHubFrame, "Size", SaveSize, 0.25, true })
+		Minimized = false
+		SetExtraChrome(true)
+	else
+		MinimizeButton.Image = "rbxassetid://10734924532"
+		SaveSize = MainHubFrame.Size
+		SetExtraChrome(false)
+		CreateTween({ MainHubFrame, "Size", UDim2.fromOffset(MainHubFrame.Size.X.Offset, 28), 0.25, true })
+		Minimized = true
+	end
+	WaitClick = false
+end
+
+function Window:Dialog(Configs)
+	local DTitle = Configs.Title or "Dialog"
+	local DText = Configs.Text or ""
+	local DOptions = Configs.Options or {}
+
+	local Screen = Create("Frame", MainHubFrame, {
+		BackgroundTransparency = 1,
+		Active = true,
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		Size = UDim2.new(1, 0, 1, 0),
+		Name = "Dialog",
+		ZIndex = 100
+	})
+
+	local Frame = Create("Frame", Screen, {
+		Active = true,
+		Size = UDim2.fromOffset(250, 150),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(16, 16, 16),
+		ZIndex = 101
+	}, {
+		Create("TextLabel", {
+			FontFace = UIFontFace,
+			Size = UDim2.new(1, 0, 0, 20),
+			Text = DTitle,
+			TextXAlignment = "Left",
+			TextColor3 = Theme["Color Text"],
+			TextSize = 15,
+			Position = UDim2.fromOffset(15, 5),
+			BackgroundTransparency = 1,
+			ZIndex = 102
+		}),
+		Create("TextLabel", {
+			FontFace = UIFontFace,
+			Size = UDim2.new(1, -25),
+			AutomaticSize = "Y",
+			Text = DText,
+			TextXAlignment = "Left",
+			TextColor3 = Theme["Color Dark Text"],
+			TextSize = 12,
+			Position = UDim2.fromOffset(15, 25),
+			BackgroundTransparency = 1,
+			TextWrapped = true,
+			ZIndex = 102
+		})
+	})
+
+	redzlib.Elements["Corner"](Frame)
+	ApplyMetallicBorder(Frame, 2)
+
+	local ButtonsHolder = Create("Frame", Frame, {
+		Size = UDim2.fromScale(1, 0.35),
+		Position = UDim2.fromScale(0, 1),
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundColor3 = Theme["Color Hub 2"],
+		BackgroundTransparency = 1,
+		ZIndex = 102
+	}, {
+		Create("UIListLayout", {
+			Padding = UDim.new(0, 10),
+			VerticalAlignment = "Center",
+			FillDirection = "Horizontal",
+			HorizontalAlignment = "Center"
+		})
+	})
+
+	CreateTween({ Screen, "BackgroundTransparency", 0.6, 0.15 })
+
+	local ButtonCount, Dialog = 1, {}
+	function Dialog:Button(Configs)
+		local Name = Configs[1] or ""
+		local Callback = Configs[2] or function() end
+		ButtonCount = ButtonCount + 1
+
+		local Button = Create("TextButton", ButtonsHolder, {
+			Text = Name,
+			FontFace = UIFontFace,
+			TextColor3 = Theme["Color Text"],
+			TextSize = 12,
+			BackgroundColor3 = ThemeColors.ButtonNormal,
+			AutoButtonColor = false,
+			ZIndex = 105
+		})
+		redzlib.Elements["Corner"](Button, UDim.new(0, 6))
+		ApplyMetallicBorder(Button, 2)
+		StyleInteractive(Button)
+
+		for _, Btn in pairs(ButtonsHolder:GetChildren()) do
+			if Btn:IsA("TextButton") then
+				Btn.Size = UDim2.new(1 / ButtonCount, -(((ButtonCount - 1) * 20) / ButtonCount), 0, 32)
+			end
+		end
+
+		Button.Activated:Connect(function()
+			Dialog.Close()
+			Callback()
+		end)
+	end
+
+	function Dialog:Close()
+		Screen:Destroy()
+	end
+
+	table.foreach(DOptions, function(_, Button)
+		Dialog:Button(Button)
+	end)
+
+	return Dialog
+end
+
+CloseButton.Activated:Connect(Window.CloseBtn)
+MinimizeButton.Activated:Connect(Window.MinimizeBtn)
+
+local TabContainers = {}
+local TabButtons = {}
+local TabPages = {}
+local function SetTabActive(btn, on)
+	Tween(btn, { BackgroundColor3 = on and Color3.fromRGB(26, 26, 26) or ThemeColors.ButtonNormal }, 0.2)
+	local bar = btn:FindFirstChild("ActiveBar")
+	if bar then
+		Tween(bar, {
+			BackgroundTransparency = on and 0 or 0.82,
+			Size = on and UDim2.new(0, 3, 0, 16) or UDim2.new(0, 3, 0, 7)
+		}, 0.2)
+	end
+end
+
+local function refreshTabCanvas()
+	local list = MainScroll and MainScroll:FindFirstChild("TabList")
+	if list then
+		MainScroll.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 20)
+	end
+end
+
+if MainScroll then
+	local list = MainScroll:FindFirstChild("TabList")
+	if list then
+		list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshTabCanvas)
+	end
+	MainScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	MainScroll.ScrollingEnabled = true
+end
+
+function CreateTab(TabName, Extra)
+	if type(TabName) == "table" and (TabName.CreateTab or TabName.MakeTab or TabName.Gui or TabName.Frame or TabName.CloseBtn or TabName.Dialog) and Extra ~= nil then
+		TabName = Extra
+	end
+	if type(TabName) == "table" then
+		TabName = TabName.Title or TabName.Name or TabName.Text or TabName[1]
+	end
+	if TabName == nil then
+		TabName = ""
+	else
+		TabName = tostring(TabName)
+	end
+	local TabBtn = Create("TextButton", {
+		Parent = MainScroll,
+		Size = UDim2.new(1, 0, 0, 26),
+		Text = "",
+		BackgroundColor3 = ThemeColors.ButtonNormal,
+		AutoButtonColor = false,
+		ZIndex = 12
+	})
+	redzlib.Elements["Corner"](TabBtn, UDim.new(0, 8))
+	ApplyMetallicBorder(TabBtn, 2.1)
+	StyleInteractive(TabBtn)
+	TabBtn:SetAttribute("TabName", TabName)
+
+	local activeBar = Instance.new("Frame")
+	activeBar.Name = "ActiveBar"
+	activeBar.Size = UDim2.new(0, 3, 0, 7)
+	activeBar.Position = UDim2.new(0, 4, 0.5, 0)
+	activeBar.AnchorPoint = Vector2.new(0, 0.5)
+	activeBar.BackgroundColor3 = ThemeColors.PureWhite
+	activeBar.BackgroundTransparency = 0.82
+	activeBar.BorderSizePixel = 0
+	activeBar.ZIndex = 14
+	activeBar.Parent = TabBtn
+	Instance.new("UICorner", activeBar).CornerRadius = UDim.new(1, 0)
+
+	local icon = Instance.new("ImageLabel")
+	icon.Size = UDim2.new(0, 18, 0, 18)
+	icon.Position = UDim2.new(0, 12, 0.5, 0)
+	icon.AnchorPoint = Vector2.new(0, 0.5)
+	icon.BackgroundTransparency = 1
+	icon.Image = "rbxthumb://type=Asset&id=76809797628298&w=420&h=420"
+	icon.ScaleType = Enum.ScaleType.Crop
+	icon.ZIndex = 13
+	icon.Parent = TabBtn
+	Instance.new("UICorner", icon).CornerRadius = UDim.new(1, 0)
+
+	Create("TextLabel", {
+		Parent = TabBtn,
+		Size = UDim2.new(1, -34, 1, 0),
+		Position = UDim2.new(0, 31, 0, 0),
+		Text = TabName,
+		TextColor3 = Theme["Color Text"],
+		FontFace = UIFontFace,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		BackgroundTransparency = 1,
+		RichText = false,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 13
+	})
+
+	local Page = Create("ScrollingFrame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		ScrollBarThickness = 2,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = "Y",
+		ScrollingDirection = "Y",
+		BorderSizePixel = 0,
+		ZIndex = 12
+	})
+	Create("UIListLayout", Page, { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder })
+	Create("UIPadding", Page, { PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 10) })
+
+	local function pageHasItems()
+		for _, child in ipairs(Page:GetChildren()) do
+			if child:IsA("GuiObject") then
+				return true
+			end
+		end
+		return false
+	end
+
+	local function refreshEmpty()
+		if Page.Parent == Containers then
+			EmptyOverlay.Visible = not pageHasItems()
+		end
+	end
+	Page.ChildAdded:Connect(refreshEmpty)
+	Page.ChildRemoved:Connect(refreshEmpty)
+
+	TabBtn.LayoutOrder = #TabButtons + 1
+	TabPages[TabBtn] = Page
+	table.insert(TabButtons, TabBtn)
+	table.insert(TabContainers, Page)
+
+	TabBtn.Active = true
+	refreshTabCanvas()
+
+	if #TabContainers == 1 then
+		Page.Parent = Containers
+		SetTabActive(TabBtn, true)
+		refreshEmpty()
+	end
+
+	TabBtn.Activated:Connect(function()
+		for i, p in ipairs(TabContainers) do
+			p.Parent = nil
+			SetTabActive(TabButtons[i], false)
+		end
+		Page.Parent = Containers
+		SetTabActive(TabBtn, true)
+		refreshEmpty()
+	end)
+
+	local Tab = {}
+
+	function Tab:AddButton(Configs)
+		local name = Configs[1] or "Button"
+		local cb = Configs.Callback or Configs[2] or function() end
+		local btn = ButtonFrame(Page, name, Configs.Desc or Configs.Description, UDim2.new(1, -36))
+		local arrow = Create("ImageLabel", btn, {
+			Size = UDim2.new(0, 14, 0, 14),
+			Position = UDim2.new(1, -12, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundTransparency = 1,
+			Image = "rbxassetid://10709791437",
+			ImageColor3 = ThemeColors.SoftWhite,
+			ZIndex = 16
+		})
+		btn.Activated:Connect(function()
+			Tween(arrow, { Rotation = 22, ImageColor3 = ThemeColors.PureWhite }, 0.08)
+			task.delay(0.1, function()
+				Tween(arrow, { Rotation = 0, ImageColor3 = ThemeColors.SoftWhite }, 0.16)
+			end)
+			if type(cb) == "function" then
+				cb()
+			end
+		end)
+		return btn
+	end
+
+	function Tab:AddToggle(Configs)
+		local name = Configs[1] or "Toggle"
+		local default = Configs[2] or false
+		local cb = Configs.Callback or Configs[3] or function() end
+		local frame = ButtonFrame(Page, name, nil, UDim2.new(1, -50))
+
+		local toggle = Create("Frame", {
+			Parent = frame,
+			Size = UDim2.new(0, 32, 0, 16),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundColor3 = default and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(50, 50, 50),
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](toggle, UDim.new(1, 0))
+		ApplyMetallicBorder(toggle, 1.6)
+
+		local dot = Create("Frame", {
+			Parent = toggle,
+			Size = UDim2.new(0, 12, 0, 12),
+			Position = default and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundColor3 = default and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(255, 255, 255),
+			ZIndex = 16
+		})
+		redzlib.Elements["Corner"](dot, UDim.new(1, 0))
+
+		local state = default
+		local function set(v)
+			state = v
+			Tween(toggle, { BackgroundColor3 = state and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(50, 50, 50) }, 0.18)
+			dot:TweenPosition(state and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0), "Out", "Quart", 0.2, true)
+			Tween(dot, { BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(255, 255, 255) }, 0.18)
+		end
+
+		frame.Activated:Connect(function()
+			set(not state)
+			if type(cb) == "function" then
+				cb(state)
+			end
+		end)
+		return { SetToggle = set }
+	end
+
+	function Tab:AddSlider(Configs)
+		local name = Configs[1] or "Slider"
+		local min = Configs[2] or 1
+		local max = Configs[3] or 100
+		local default = Configs[5] or 25
+		local cb = Configs.Callback or Configs[6] or function() end
+
+		local btn = ButtonFrame(Page, name, nil, UDim2.new(1, -180))
+
+		local bar = Create("Frame", {
+			Parent = btn,
+			BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+			Size = UDim2.new(0, 120, 0, 6),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](bar, UDim.new(1, 0))
+		ApplyMetallicBorder(bar, 1.5)
+
+		local fill = Create("Frame", {
+			Parent = bar,
+			BackgroundColor3 = Theme["Color Stroke"],
+			Size = UDim2.fromScale((default - min) / math.max(max - min, 1), 1),
+			ZIndex = 16
+		})
+		redzlib.Elements["Corner"](fill, UDim.new(1, 0))
+
+		local icon = Create("Frame", {
+			Parent = bar,
+			Size = UDim2.new(0, 11, 0, 11),
+			BackgroundColor3 = Color3.fromRGB(230, 230, 230),
+			Position = UDim2.fromScale((default - min) / math.max(max - min, 1), 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			ZIndex = 17
+		})
+		redzlib.Elements["Corner"](icon, UDim.new(1, 0))
+		ApplyMetallicBorder(icon, 1)
+
+		local label = Create("TextLabel", {
+			Parent = btn,
+			Size = UDim2.new(0, 40, 0, 14),
+			Position = UDim2.new(1, -140, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Text = tostring(default),
+			TextColor3 = Theme["Color Text"],
+			FontFace = UIFontFace,
+			TextSize = 10,
+			BackgroundTransparency = 1,
+			ZIndex = 15
+		})
+
+		local function updateSlider(input)
+			local ratio = math.clamp((input.Position.X - bar.AbsolutePosition.X) / math.max(bar.AbsoluteSize.X, 1), 0, 1)
+			local val = math.floor(min + (ratio * (max - min)))
+			label.Text = tostring(val)
+			icon.Position = UDim2.fromScale(ratio, 0.5)
+			fill.Size = UDim2.fromScale(ratio, 1)
+			if type(cb) == "function" then
+				cb(val)
+			end
+		end
+
+		local allowedInputs = { Enum.UserInputType.MouseButton1, Enum.UserInputType.Touch }
+		local activeInput = nil
+		bar.InputBegan:Connect(function(input)
+			if table.find(allowedInputs, input.UserInputType) then
+				activeInput = input
+				updateSlider(input)
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if input == activeInput then
+				updateSlider(input)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if input == activeInput then
+				activeInput = nil
+			end
+		end)
+		return btn
+	end
+
+	function Tab:AddTextBox(Configs)
+		local name = Configs[1] or "Text Box"
+		local default = Configs[2] or ""
+		local placeholder = Configs.Placeholder or "اكتب هنا..."
+		local cb = Configs.Callback or Configs[4] or function() end
+
+		local btn = ButtonFrame(Page, name, nil, UDim2.new(1, -38))
+		local boxFrame = Create("Frame", {
+			Parent = btn,
+			Size = UDim2.new(0, 150, 0, 18),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundColor3 = Color3.fromRGB(22, 22, 22),
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](boxFrame, UDim.new(0, 5))
+		ApplyMetallicBorder(boxFrame, 1.6)
+
+		local box = Create("TextBox", {
+			Parent = boxFrame,
+			Size = UDim2.new(0.9, 0, 0.85, 0),
+			Position = UDim2.new(0.5, 0, 0.5, 0),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Text = default,
+			PlaceholderText = placeholder,
+			TextColor3 = Color3.fromRGB(255, 255, 255),
+			FontFace = UIFontFace,
+			TextSize = 11,
+			ClearTextOnFocus = false,
+			ZIndex = 16
+		})
+
+		box.FocusLost:Connect(function()
+			if type(cb) == "function" then
+				cb(box.Text)
+			end
+		end)
+		return btn
+	end
+
+	function Tab:AddDropdown(Configs)
+		local title = Configs.Title or "Dropdown"
+		local options = Configs.Options or {}
+		local cb = Configs.Callback or function() end
+		local selected = options[1] or ""
+
+		local btn = ButtonFrame(Page, title, nil, UDim2.new(1, -80))
+		local valueLabel = Create("TextLabel", {
+			Parent = btn,
+			Size = UDim2.new(0, 70, 0, 20),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Text = selected,
+			TextColor3 = Theme["Color Text"],
+			FontFace = UIFontFace,
+			TextSize = 10,
+			BackgroundColor3 = ThemeColors.ButtonNormal,
+			BackgroundTransparency = 0.2,
+			ZIndex = 15
+		})
+		redzlib.Elements["Corner"](valueLabel, UDim.new(0, 6))
+		ApplyMetallicBorder(valueLabel, 1.6)
+
+		local dropdownFrame = Create("Frame", {
+			Parent = Page,
+			Size = UDim2.new(1, -20, 0, 0),
+			BackgroundColor3 = ThemeColors.DarkPanel,
+			Visible = false,
+			ClipsDescendants = true,
+			AutomaticSize = "Y",
+			ZIndex = 50
+		})
+		redzlib.Elements["Corner"](dropdownFrame, UDim.new(0, 6))
+		ApplyMetallicBorder(dropdownFrame, 1.8)
+		Create("UIListLayout", dropdownFrame, { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder })
+		Create("UIPadding", dropdownFrame, {
+			PaddingLeft = UDim.new(0, 5),
+			PaddingRight = UDim.new(0, 5),
+			PaddingTop = UDim.new(0, 5),
+			PaddingBottom = UDim.new(0, 5)
+		})
+
+		local function refresh(opts)
+			for _, child in ipairs(dropdownFrame:GetChildren()) do
+				if child:IsA("TextButton") then
+					child:Destroy()
+				end
+			end
+			for _, opt in ipairs(opts) do
+				local b = Create("TextButton", dropdownFrame, {
+					Size = UDim2.new(1, 0, 0, 24),
+					Text = opt,
+					BackgroundColor3 = ThemeColors.ButtonNormal,
+					AutoButtonColor = false,
+					TextColor3 = Theme["Color Text"],
+					FontFace = UIFontFace,
+					TextSize = 10,
+					ZIndex = 51
+				})
+				redzlib.Elements["Corner"](b, UDim.new(0, 5))
+				ApplyMetallicBorder(b, 1.5)
+				StyleInteractive(b)
+				b.Activated:Connect(function()
+					selected = opt
+					valueLabel.Text = opt
+					dropdownFrame.Visible = false
+					if type(cb) == "function" then
+						cb(opt)
+					end
+				end)
+			end
+			dropdownFrame.Size = UDim2.new(1, -20, 0, #opts * 26 + 10)
+		end
+		refresh(options)
+
+		btn.Activated:Connect(function()
+			dropdownFrame.Visible = not dropdownFrame.Visible
+			if dropdownFrame.Visible then
+				dropdownFrame.Size = UDim2.new(1, -20, 0, #options * 26 + 10)
+			end
+		end)
+
+		local dropdownObj = {}
+		function dropdownObj:Refresh(opts)
+			options = opts
+			refresh(opts)
+			valueLabel.Text = opts[1] or ""
+			selected = opts[1] or ""
+		end
+		return dropdownObj
+	end
+
+	return Tab
+end
+
+local HubSequenceReady = false
+local WantShowHub = false
+
+local function ShowMainHub()
+	if not HubSequenceReady then
+		WantShowHub = true
+		return
+	end
+	ToggleButton.Visible = true
+	MainHubFrame.Visible = true
+	PlayMusic()
+	CreateNotification("نورت السكربت يا غالي", 5)
+	task.delay(5.5, function()
+		CreateNotification("أنت الآن تستخدم سكربت Zenix Dark Joker", 5)
+	end)
+end
+
+local function loadScript(url, callback)
+	task.spawn(function()
+		local success, result = pcall(function()
+			return game:HttpGet(url)
+		end)
+		if success and result then
+			local func, err = loadstring(result)
+			if func then
+				local ok, msg = pcall(func)
+				if ok then
+					if callback then
+						callback(true)
+					end
+				else
+					if callback then
+						callback(false, msg)
+					end
+				end
+			else
+				if callback then
+					callback(false, err)
+				end
+			end
+		else
+			if callback then
+				callback(false, result)
+			end
+		end
+	end)
+end
+
+local function waitForChildTimeout(parent, name, timeout)
+	local t = 0
+	local obj = parent and parent:FindFirstChild(name)
+	while not obj and t < timeout do
+		task.wait(0.1)
+		t = t + 0.1
+		obj = parent and parent:FindFirstChild(name)
+	end
+	return obj
+end
+
+local function waitUntilGone(inst, timeout)
+	local t = 0
+	while inst and inst.Parent and t < timeout do
+		task.wait(0.1)
+		t = t + 0.1
+	end
+end
+
+task.spawn(function()
+	ToggleButton.Visible = false
+	MainHubFrame.Visible = false
+
+	pcall(function()
+		loadScript("https://raw.githubusercontent.com/Zenix-V-I-X/entro/refs/heads/main/entro")
+	end)
+
+	local introPlayerGui = Player:FindFirstChild("PlayerGui") or playerGui
+	local introGui = waitForChildTimeout(introPlayerGui, "ZenixIntroGui", 5)
+
+	if introGui then
+		waitUntilGone(introGui, 20)
+		task.wait(0.2)
+	else
+		task.wait(0.4)
+	end
+
+	pcall(function()
+		loadScript("https://raw.githubusercontent.com/Zenix-V-I-X/ndam-al9ab-fo9-ras/refs/heads/main/al9ab%20fo9%20ras")
+	end)
+	task.wait(0.3)
+
+	HubSequenceReady = true
+	ShowMainHub()
+end)
+
+Window.MakeTab = CreateTab
+Window.CreateTab = CreateTab
+
+local Library = {
+	CreateTab = CreateTab,
+	MakeTab = CreateTab,
+	Notify = CreateNotification,
+	Window = Window,
+	Show = ShowMainHub,
+	Frame = MainHubFrame,
+	Gui = ScreenGuiHub
+}
+
+return Library
+
+]=====]
+	local fn, err = loadstring(libSrc)
+	if not fn then
+		warn("[Zenix] embed compile error:", err)
+		return
+	end
+	local ok, res = pcall(fn)
+	if not ok then
+		warn("[Zenix] embed runtime error:", res)
+		return
+	end
+	if type(res) ~= "table" or not res.MakeTab then
+		warn("[Zenix] embed invalid Library")
+		return
+	end
+	Library = res
+	warn("[Zenix] Library embedded OK")
+end
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
@@ -18,8 +1679,23 @@ local HttpService = game:GetService("HttpService")
 local function noop() end
 
 local originalMakeTab = Library.MakeTab
+local _zenixTabsCreated = 0
 function Library:MakeTab(config)
-	local tab = originalMakeTab(self, config)
+	local ok, tab = pcall(function()
+		return originalMakeTab(self, config)
+	end)
+	if not ok or not tab then
+		warn("[Zenix] MakeTab failed:", config and config.Title, tab)
+		-- dummy so script continues
+		local dummy = {}
+		function dummy:AddButton() return nil end
+		function dummy:AddToggle() return { SetToggle = function() end } end
+		function dummy:AddSlider() return nil end
+		function dummy:AddTextBox() return nil end
+		function dummy:AddDropdown() return { Refresh = function() end } end
+		return dummy
+	end
+	_zenixTabsCreated = _zenixTabsCreated + 1
 	tab._page = nil
 	local function detectPage(element)
 		if tab._page then return end
@@ -40,16 +1716,19 @@ function Library:MakeTab(config)
 	end
 	local origAddButton = tab.AddButton
 	function tab:AddButton(cfg)
-		local btn = origAddButton(self, cfg)
-		detectPage(btn)
-		return btn
+		local ok2, btn = pcall(function() return origAddButton(self, cfg) end)
+		if ok2 and btn then detectPage(btn) end
+		return ok2 and btn or nil
 	end
 	local origToggle = tab.AddToggle
 	function tab:AddToggle(cfg)
-		if cfg.Title and not cfg[1] then cfg = { cfg.Title, cfg.Default or false, Callback = cfg.Callback } end
+		if type(cfg) == "table" and cfg.Title and not cfg[1] then
+			cfg = { cfg.Title, cfg.Default or false, Callback = cfg.Callback }
+		end
 		local before = {}
 		if tab._page then for _, c in ipairs(tab._page:GetChildren()) do before[c] = true end end
-		local result = origToggle(self, cfg)
+		local ok2, result = pcall(function() return origToggle(self, cfg) end)
+		if not ok2 then warn("[Zenix] AddToggle fail", cfg and (cfg[1] or cfg.Title), result); return { SetToggle = function() end } end
 		if tab._page and result then
 			for _, c in ipairs(tab._page:GetChildren()) do
 				if not before[c] and c:IsA("TextButton") then result.Frame = c; break end
@@ -60,19 +1739,36 @@ function Library:MakeTab(config)
 	end
 	local origSlider = tab.AddSlider
 	function tab:AddSlider(cfg)
-		if cfg.Title and not cfg[1] then cfg = { cfg.Title, cfg.Min or 0, cfg.Max or 100, nil, cfg.Default or 50, Callback = cfg.Callback } end
-		local result = origSlider(self, cfg)
-		detectPage(result)
-		return result
+		if type(cfg) == "table" and cfg.Title and not cfg[1] then
+			cfg = { cfg.Title, cfg.Min or 0, cfg.Max or 100, nil, cfg.Default or 50, Callback = cfg.Callback }
+		end
+		local ok2, result = pcall(function() return origSlider(self, cfg) end)
+		if ok2 then detectPage(result) end
+		return ok2 and result or nil
 	end
 	local origTextBox = tab.AddTextBox
 	function tab:AddTextBox(cfg)
-		if cfg.Title and not cfg[1] then cfg = { cfg.Title, cfg.Default or "", cfg.PlaceholderText or cfg.Placeholder, Callback = cfg.Callback } end
-		local result = origTextBox(self, cfg)
-		detectPage(result)
-		return result
+		if type(cfg) == "table" and cfg.Title and not cfg[1] then
+			cfg = { cfg.Title, cfg.Default or "", Placeholder = cfg.PlaceholderText or cfg.Placeholder, Callback = cfg.Callback }
+		elseif type(cfg) == "table" and cfg[1] and cfg[3] and not cfg.Placeholder then
+			cfg.Placeholder = cfg[3]
+		end
+		local ok2, result = pcall(function() return origTextBox(self, cfg) end)
+		if ok2 then detectPage(result) end
+		return ok2 and result or nil
+	end
+	local origDropdown = tab.AddDropdown
+	if origDropdown then
+		function tab:AddDropdown(cfg)
+			local ok2, result = pcall(function() return origDropdown(self, cfg) end)
+			if ok2 then detectPage(result) end
+			return ok2 and result or { Refresh = function() end }
+		end
 	end
 	return tab
+end
+
+return tab
 end
 
 _G.ZainCustomColors = true
@@ -134,163 +1830,7 @@ local function PickTool(toolName)
 	end)
 end
 
-local function WriteOnSign(signTool, text)
-	if signTool then
-		local remote = signTool:FindFirstChild("ToolSound")
-		if remote then
-			pcall(function() remote:FireServer("Sign", "Open") end)
-			task.wait(0.2)
-			pcall(function() remote:FireServer("Sign", "SignWords", text) end)
-			task.wait(0.1)
-			pcall(function() remote:FireServer("Sign", "Close") end)
-			return true
-		end
-	end
-	return false
-end
-
-local function GetWhiteSign()
-	pcall(function()
-		local RE = ReplicatedStorage:FindFirstChild("RE")
-		if RE then
-			local b_tool = RE:FindFirstChild("1Too1l")
-			if b_tool then b_tool:InvokeServer("PickingTools", "Sign") end
-		end
-	end)
-	task.spawn(function()
-		task.wait(0.6)
-		local char = LocalPlayer.Character
-		local backpack = LocalPlayer:FindFirstChild("Backpack")
-		if not char then return end
-		local signTool = nil
-		if backpack then signTool = backpack:FindFirstChild("Sign") end
-		if not signTool then signTool = char:FindFirstChild("Sign") end
-		if signTool then
-			local hum = char:FindFirstChild("Humanoid")
-			if hum and signTool.Parent ~= char then
-				pcall(function() hum:EquipTool(signTool) end)
-			end
-		end
-	end)
-end
-
 task.wait(0.5)
-
-local countdowns = {}
-local function createCountdown(btn)
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, 0, 1, 0)
-	lbl.Position = UDim2.new(0, 0, 0, 0)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = ""
-	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-	lbl.FontFace = Font.new("rbxassetid://12187360881")
-	lbl.TextSize = 18
-	lbl.TextStrokeTransparency = 0.3
-	lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-	lbl.ZIndex = 30
-	lbl.Visible = false
-	lbl.Parent = btn
-	local state = { value = 60, max = 60, active = false, label = lbl }
-	table.insert(countdowns, state)
-	return state
-end
-local function startCountdown(state)
-	state.value = state.max
-	state.active = true
-	if state.label then
-		state.label.Text = tostring(state.value)
-		state.label.Visible = true
-	end
-end
-task.spawn(function()
-	while task.wait(1) do
-		for _, state in ipairs(countdowns) do
-			if state.active then
-				state.value = state.value - 1
-				if state.value <= 0 then
-					state.active = false
-					if state.label then
-						state.label.Text = ""
-						state.label.Visible = false
-					end
-				else
-					if state.label then state.label.Text = tostring(state.value) end
-				end
-			end
-		end
-	end
-end)
-
-local rpCountdown = { value = 60, max = 60, active = false, label = nil }
-local bioCountdown = { value = 60, max = 60, active = false, label = nil }
-table.insert(countdowns, rpCountdown)
-table.insert(countdowns, bioCountdown)
-
-local rpLabel, bioLabel = nil, nil
-local lastRP, lastBio = nil, nil
-local rpBioInitialized = false
-
-local function findBillboardLabels()
-	local char = LocalPlayer.Character
-	if not char then return nil end
-	local labels = {}
-	for _, desc in ipairs(char:GetDescendants()) do
-		if desc:IsA("TextLabel") then
-			local p = desc
-			local isBB = false
-			for _ = 1, 10 do
-				p = p.Parent
-				if not p then break end
-				if p:IsA("BillboardGui") then isBB = true; break end
-			end
-			if isBB then table.insert(labels, desc) end
-		end
-	end
-	table.sort(labels, function(a, b) return (a.TextSize or 0) > (b.TextSize or 0) end)
-	return labels
-end
-
-task.spawn(function()
-	while task.wait(0.25) do
-		local labels = findBillboardLabels()
-		if not labels or #labels == 0 then
-			rpLabel, bioLabel = nil, nil
-			lastRP, lastBio = nil, nil
-			rpBioInitialized = false
-		else
-			if not rpLabel or not rpLabel.Parent then
-				rpLabel = labels[1]
-				lastRP = rpLabel and rpLabel.Text or nil
-			end
-			if not bioLabel or not bioLabel.Parent then
-				if #labels >= 2 then
-					bioLabel = labels[2]
-					lastBio = bioLabel and bioLabel.Text or nil
-				end
-			end
-			if rpLabel and rpLabel.Parent then
-				if rpBioInitialized and lastRP ~= nil and rpLabel.Text ~= lastRP then
-					lastRP = rpLabel.Text
-					startCountdown(rpCountdown)
-				else
-					lastRP = rpLabel.Text
-				end
-			end
-			if bioLabel and bioLabel.Parent then
-				if rpBioInitialized and lastBio ~= nil and bioLabel.Text ~= lastBio then
-					lastBio = bioLabel.Text
-					startCountdown(bioCountdown)
-				else
-					lastBio = bioLabel.Text
-				end
-			end
-			rpBioInitialized = true
-		end
-	end
-end)
-
-local rainbowSpeed = 20
 
 local rightsTab = Library:MakeTab({ Title = "حقوق زينكس" })
 rightsTab:AddButton({ "حقوق المطور Zenix وحقوق التبويبات تحت", Callback = noop })
@@ -369,10 +1909,14 @@ end })
 
 Tab1:AddButton({ "اقتل نفسك", Callback = function()
 	local char = LocalPlayer.Character
-	if char and char:FindFirstChild("Humanoid") then char.Humanoid.Health = 0 end
+	if char and char:FindFirstChild("Humanoid") then
+		char.Humanoid.Health = 0
+	end
 end })
 Tab1:AddButton({ "rejoin", Callback = function()
-	pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
+	pcall(function()
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+	end)
 end })
 Tab1:AddButton({ "server hop", Callback = function()
 	pcall(function()
@@ -413,6 +1957,7 @@ RunService.Stepped:Connect(function()
 end)
 Tab1:AddToggle({ "noclip", false, Callback = function(state) noclipEnabled = state end })
 
+local spinEnabled = false
 local spinSpeed = 20
 local spinBV = nil
 Tab1:AddSlider({ "سرعة الدوران", 1, 100, nil, 20, Callback = function(v)
@@ -420,6 +1965,7 @@ Tab1:AddSlider({ "سرعة الدوران", 1, 100, nil, 20, Callback = function
 	if spinBV then spinBV.AngularVelocity = Vector3.new(0, spinSpeed, 0) end
 end })
 Tab1:AddToggle({ "spin", false, Callback = function(state)
+	spinEnabled = state
 	local char = LocalPlayer.Character
 	if char then
 		local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -460,6 +2006,48 @@ end })
 
 local ColorNameTab = Library:MakeTab({ Title = "تلوين اسم الاعب واشياء اخرى" })
 
+local rpNameTimerVal, rpBioTimerVal = 60, 60
+local rpNameTimerActive, rpBioTimerActive = false, false
+local rpCountdownLbl, bioCountdownLbl
+
+local function createCountdownLabel(btn)
+	if not btn then return nil end
+	local parent = btn
+	if typeof(btn) == "table" and btn.Frame then parent = btn.Frame end
+	if typeof(parent) ~= "Instance" then return nil end
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.Position = UDim2.new(0, 0, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = ""
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	pcall(function() lbl.FontFace = Font.new("rbxassetid://12187360881") end)
+	lbl.TextSize = 18
+	lbl.TextStrokeTransparency = 0.3
+	lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	lbl.ZIndex = 30
+	lbl.Visible = false
+	lbl.Parent = parent
+	return lbl
+end
+
+local function startRPTimer()
+	rpNameTimerVal = 60
+	rpNameTimerActive = true
+	if rpCountdownLbl then
+		rpCountdownLbl.Text = "60"
+		rpCountdownLbl.Visible = true
+	end
+end
+local function startBioTimer()
+	rpBioTimerVal = 60
+	rpBioTimerActive = true
+	if bioCountdownLbl then
+		bioCountdownLbl.Text = "60"
+		bioCountdownLbl.Visible = true
+	end
+end
+
 ColorNameTab:AddButton({ "اختار لون اسم الاعب او غير اسم الاعب من هنا", Callback = noop })
 
 local rpNameText = ""
@@ -473,8 +2061,9 @@ local rpNameBtn = ColorNameTab:AddButton({ "تفعيل اسم rp", Callback = fu
 			if rpEvent then rpEvent:FireServer("RolePlayName", rpNameText) end
 		end
 	end)
+	startRPTimer()
 end })
-createCountdown(rpNameBtn)
+if rpNameBtn then rpCountdownLbl = createCountdownLabel(rpNameBtn) end
 
 local rpBioText = ""
 ColorNameTab:AddTextBox({ "اسم بايو الاعب", "", "اكتب اسم البايو هنا", Callback = function(v) rpBioText = v end })
@@ -487,24 +2076,118 @@ local rpBioBtn = ColorNameTab:AddButton({ "تفعيل اسم البايو", Call
 			if rpEvent then rpEvent:FireServer("RolePlayBio", rpBioText) end
 		end
 	end)
+	startBioTimer()
 end })
-createCountdown(rpBioBtn)
+if rpBioBtn then bioCountdownLbl = createCountdownLabel(rpBioBtn) end
+
+task.spawn(function()
+	while task.wait(1) do
+		if rpNameTimerActive then
+			rpNameTimerVal = rpNameTimerVal - 1
+			if rpNameTimerVal <= 0 then
+				rpNameTimerActive = false
+				if rpCountdownLbl then
+					rpCountdownLbl.Visible = false
+					rpCountdownLbl.Text = ""
+				end
+			else
+				if rpCountdownLbl then rpCountdownLbl.Text = tostring(rpNameTimerVal) end
+			end
+		end
+		if rpBioTimerActive then
+			rpBioTimerVal = rpBioTimerVal - 1
+			if rpBioTimerVal <= 0 then
+				rpBioTimerActive = false
+				if bioCountdownLbl then
+					bioCountdownLbl.Visible = false
+					bioCountdownLbl.Text = ""
+				end
+			else
+				if bioCountdownLbl then bioCountdownLbl.Text = tostring(rpBioTimerVal) end
+			end
+		end
+	end
+end)
+
+local rpNameLabelRef, bioLabelRef = nil, nil
+local lastRPText, lastBioText = "", ""
+
+local function findBillboardLabels()
+	rpNameLabelRef = nil
+	bioLabelRef = nil
+	local char = LocalPlayer.Character
+	if not char then return end
+	local texts = {}
+	for _, desc in ipairs(char:GetDescendants()) do
+		if desc:IsA("TextLabel") and desc.Text ~= "" and desc.Text ~= "..." then
+			local p = desc.Parent
+			local depth = 0
+			while p and depth < 6 do
+				if p:IsA("BillboardGui") then
+					table.insert(texts, desc)
+					break
+				end
+				p = p.Parent
+				depth = depth + 1
+			end
+		end
+	end
+	if #texts >= 2 then
+		table.sort(texts, function(a, b) return a.TextSize > b.TextSize end)
+		rpNameLabelRef = texts[1]
+		bioLabelRef = texts[2]
+		lastRPText = rpNameLabelRef.Text
+		lastBioText = bioLabelRef.Text
+	elseif #texts == 1 then
+		rpNameLabelRef = texts[1]
+		lastRPText = rpNameLabelRef.Text
+	end
+end
+
+task.spawn(function()
+	while task.wait(0.5) do
+		local char = LocalPlayer.Character
+		if not char then
+			rpNameLabelRef = nil
+			bioLabelRef = nil
+		else
+			if not rpNameLabelRef or not rpNameLabelRef.Parent then
+				findBillboardLabels()
+			end
+			if rpNameLabelRef and rpNameLabelRef.Parent then
+				if rpNameLabelRef.Text ~= lastRPText then
+					lastRPText = rpNameLabelRef.Text
+					startRPTimer()
+				end
+			end
+			if bioLabelRef and bioLabelRef.Parent then
+				if bioLabelRef.Text ~= lastBioText then
+					lastBioText = bioLabelRef.Text
+					startBioTimer()
+				end
+			end
+		end
+	end
+end)
 
 local signText = ""
 ColorNameTab:AddTextBox({ "اسحب sign واكتب بيها", "", "اكتب النص اللي على اللوحه", Callback = function(v) signText = v end })
-local signBtn = ColorNameTab:AddButton({ "تفعيل sign", Callback = function()
+ColorNameTab:AddButton({ "تفعيل sign", Callback = function()
 	if signText == "" then return end
 	local char = LocalPlayer.Character
 	if not char then return end
+
 	local existingSign = char:FindFirstChild("Sign")
 	if existingSign and existingSign:FindFirstChild("ToolSound") then
-		WriteOnSign(existingSign, signText)
+		pcall(function() existingSign.ToolSound:FireServer("Sign", "SignWords", signText) end)
 		return
 	end
+
 	local backpack = LocalPlayer:FindFirstChild("Backpack")
 	local signTool = nil
 	if backpack then signTool = backpack:FindFirstChild("Sign") end
 	if not signTool then signTool = char:FindFirstChild("Sign") end
+
 	if not signTool then
 		pcall(function()
 			local RE = ReplicatedStorage:FindFirstChild("RE")
@@ -517,251 +2200,28 @@ local signBtn = ColorNameTab:AddButton({ "تفعيل sign", Callback = function(
 		if backpack then signTool = backpack:FindFirstChild("Sign") end
 		if not signTool then signTool = char:FindFirstChild("Sign") end
 	end
+
 	if not signTool then return end
+
 	local hum = char:FindFirstChild("Humanoid")
 	if hum and signTool.Parent ~= char then
 		pcall(function() hum:EquipTool(signTool) end)
 	end
+
 	task.spawn(function()
 		for _ = 1, 30 do
 			local signObj = char:FindFirstChild("Sign")
 			if signObj and signObj:FindFirstChild("ToolSound") then
-				WriteOnSign(signObj, signText)
+				pcall(function()
+					signObj.ToolSound:FireServer("Sign", "Open")
+					task.wait(0.2)
+					signObj.ToolSound:FireServer("Sign", "SignWords", signText)
+					task.wait(0.1)
+					signObj.ToolSound:FireServer("Sign", "Close")
+				end)
 				return
 			end
 			task.wait(0.1)
-		end
-	end)
-end })
-createCountdown(signBtn)
-
-local petNameText = ""
-ColorNameTab:AddTextBox({ "اكتب فوق راس الحيوان", "", "اكتب الاسم هنا", Callback = function(v) petNameText = v end })
-local petNameBtn = ColorNameTab:AddButton({ "تفعيل اسم الحيوان", Callback = function()
-	if petNameText == "" then return end
-	local function hasPet()
-		local char = LocalPlayer.Character
-		if not char then return false end
-		for _, c in ipairs(char:GetChildren()) do
-			if c.Name:lower():find("pet") then return true end
-		end
-		return false
-	end
-	if not hasPet() then
-		local re = ReplicatedStorage:FindFirstChild("RE")
-		if re then
-			for _, name in ipairs({"1Pe1t", "1Pet1", "1Pet1s", "1Pets1", "1Pe1ts"}) do
-				local r = re:FindFirstChild(name)
-				if r then
-					pcall(function() r:FireServer("SpawnPet", "BabyMonkey") end)
-					task.wait(0.4)
-					if hasPet() then break end
-				end
-			end
-		end
-	end
-	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-	if remotes then
-		local ev = remotes:FindFirstChild("Pet_SetName")
-		if ev then pcall(function() ev:FireServer(petNameText) end) end
-	end
-end })
-createCountdown(petNameBtn)
-
-local kidNameText = ""
-ColorNameTab:AddTextBox({ "اكتب فوق راس الطفل", "", "اكتب الاسم هنا", Callback = function(v) kidNameText = v end })
-local kidNameBtn = ColorNameTab:AddButton({ "تفعيل اسم الطفل", Callback = function()
-	if kidNameText == "" then return end
-	local function hasKid()
-		local char = LocalPlayer.Character
-		if not char then return false end
-		for _, c in ipairs(char:GetChildren()) do
-			if c.Name == "FollowCharacter" or c.Name:lower():find("kid") or c.Name:lower():find("baby") then
-				return true
-			end
-		end
-		return false
-	end
-	if not hasKid() then
-		pcall(function()
-			ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("SpawnChild", "BabyBoy")
-		end)
-		task.wait(1)
-	end
-	local re = ReplicatedStorage:FindFirstChild("RE")
-	if re then
-		local ev = re:FindFirstChild("1RPNam1eTex1t")
-		if ev then pcall(function() ev:FireServer("RolePlayFollow", kidNameText) end) end
-	end
-end })
-createCountdown(kidNameBtn)
-
-ColorNameTab:AddSlider({ "سرعة تلوين الاسماء ونصوص", 1, 200, nil, 20, Callback = function(v) rainbowSpeed = v end })
-
-local petNameRainbowActive = false
-local petColorNames = {"Royal purple", "Really blue", "Toothpaste", "Lime green", "Really red", "Pink", "Institutional white"}
-ColorNameTab:AddToggle({ "تلوين اسم الحيوان", false, Callback = function(state)
-	petNameRainbowActive = state
-	if not state then return end
-	task.spawn(function()
-		local i = 1
-		while petNameRainbowActive do
-			local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-			if remotes then
-				local ev = remotes:FindFirstChild("Pet_SetNameColor")
-				if ev and petColorNames[i] then
-					pcall(function() ev:FireServer(petColorNames[i]) end)
-				end
-			end
-			i = i + 1
-			if i > #petColorNames then i = 1 end
-			task.wait(1 / rainbowSpeed)
-		end
-	end)
-end })
-
-local kidNameRainbowActive = false
-local function getKidsColors()
-	local gui = LocalPlayer:FindFirstChild("PlayerGui")
-	if not gui then return nil end
-	local handler = gui:FindFirstChild("NoResetGUIHandler")
-	if not handler then return nil end
-	local petsKids = handler:FindFirstChild("PetsKidsMenu")
-	if not petsKids then return nil end
-	local catalog = petsKids:FindFirstChild("Catalog")
-	if not catalog then return nil end
-	local container = catalog:FindFirstChild("Container")
-	if not container then return nil end
-	local sf = container:FindFirstChild("ScrollingFrameKid2")
-	if not sf then return nil end
-	local kframe = sf:FindFirstChild("Frame")
-	if not kframe then return nil end
-	local children = kframe:GetChildren()
-	local colors = {}
-	local function addColor(obj)
-		if obj then
-			local ok, color = pcall(function() return obj.Color end)
-			if ok and color then table.insert(colors, color) end
-		end
-	end
-	addColor(children[2]); addColor(children[3]); addColor(children[4]); addColor(children[7])
-	addColor(children[5]); addColor(children[6]); addColor(kframe:FindFirstChild("FollowColor"))
-	return colors
-end
-ColorNameTab:AddToggle({ "تلوين اسم الطفل", false, Callback = function(state)
-	kidNameRainbowActive = state
-	if not state then return end
-	task.spawn(function()
-		local colors = getKidsColors()
-		if not colors or #colors == 0 then
-			kidNameRainbowActive = false
-			return
-		end
-		local i = 1
-		while kidNameRainbowActive do
-			local re = ReplicatedStorage:FindFirstChild("RE")
-			if re then
-				local ev = re:FindFirstChild("1RPNam1eColo1r")
-				if ev and colors[i] then
-					pcall(function() ev:FireServer("PickingRPFollowColor", colors[i]) end)
-				end
-			end
-			i = i + 1
-			if i > #colors then i = 1 end
-			task.wait(1 / rainbowSpeed)
-		end
-	end)
-end })
-
-local signRainbowActive = false
-local function getLocalSignForRainbow()
-	local char = LocalPlayer.Character
-	if char then
-		local sign = char:FindFirstChild("Sign")
-		if sign then return sign end
-	end
-	local backpack = LocalPlayer:FindFirstChild("Backpack")
-	if backpack then return backpack:FindFirstChild("Sign") end
-	return nil
-end
-local function getSignFrame()
-	local gui = LocalPlayer:FindFirstChild("PlayerGui")
-	if gui then
-		local gunGui = gui:FindFirstChild("GunGUI")
-		if gunGui then
-			local sg = gunGui:FindFirstChild("SignGui")
-			if sg then
-				local a = sg:FindFirstChild("A")
-				if a then
-					local b = a:FindFirstChild("B")
-					if b then
-						local c = b:FindFirstChild("C")
-						if c then return c:FindFirstChild("Frame") end
-					end
-				end
-			end
-		end
-	end
-	local sign = getLocalSignForRainbow()
-	if sign then
-		local localTool = sign:FindFirstChild("LocalTool")
-		if localTool then
-			local gunGui = localTool:FindFirstChild("GunGUI")
-			if gunGui then
-				local sg = gunGui:FindFirstChild("SignGui")
-				if sg then
-					local a = sg:FindFirstChild("A")
-					if a then
-						local b = a:FindFirstChild("B")
-						if b then
-							local c = b:FindFirstChild("C")
-							if c then return c:FindFirstChild("Frame") end
-						end
-					end
-				end
-			end
-		end
-	end
-	return nil
-end
-local function getSignRainbowColors()
-	local frame = getSignFrame()
-	if not frame then return nil end
-	local children = frame:GetChildren()
-	local colors = {}
-	local function addColor(obj)
-		if obj then
-			local ok, color = pcall(function() return obj.Color end)
-			if ok and color then table.insert(colors, color) end
-		end
-	end
-	addColor(children[5]); addColor(children[4]); addColor(children[2])
-	addColor(frame:FindFirstChild("Colors"))
-	addColor(children[10]); addColor(children[9]); addColor(children[8])
-	addColor(children[7]); addColor(children[6]); addColor(children[3])
-	return colors
-end
-ColorNameTab:AddToggle({ "تلوين نص اللوحه", false, Callback = function(state)
-	signRainbowActive = state
-	if not state then return end
-	task.spawn(function()
-		local colors = getSignRainbowColors()
-		if not colors or #colors == 0 then
-			signRainbowActive = false
-			return
-		end
-		local i = 1
-		while signRainbowActive do
-			local sign = getLocalSignForRainbow()
-			if sign then
-				local remote = sign:FindFirstChild("ToolSound")
-				if remote and colors[i] then
-					pcall(function() remote:FireServer("Sign", "SignColor", colors[i]) end)
-				end
-			end
-			i = i + 1
-			if i > #colors then i = 1 end
-			task.wait(1 / rainbowSpeed)
 		end
 	end)
 end })
@@ -824,6 +2284,7 @@ local colorsList = {
 	{"مارون و ذهبي", Color3.fromRGB(128,0,0), Color3.fromRGB(255,215,0)},
 	{"فيروزي و ابيض", Color3.fromRGB(64,224,208), Color3.fromRGB(255,255,255)}
 }
+
 local activeColorToggle = nil
 for idx, colorData in ipairs(colorsList) do
 	local name = colorData[1]
@@ -833,7 +2294,9 @@ for idx, colorData in ipairs(colorsList) do
 	local thisToggle
 	thisToggle = ColorNameTab:AddToggle({ name, isDefault, Callback = function(state)
 		if state then
-			if activeColorToggle and activeColorToggle ~= thisToggle then activeColorToggle.SetToggle(false) end
+			if activeColorToggle and activeColorToggle ~= thisToggle then
+				activeColorToggle.SetToggle(false)
+			end
 			activeColorToggle = thisToggle
 			_G.customColors = colors
 			_G.ZainCustomColors = true
@@ -862,6 +2325,7 @@ local camState = {
 	upsideBound = false, grayEffect = nil, pulseConn = nil, rollAngle = 0, rollBound = false,
 	strobeFrame = nil, strobeConn = nil, origFogEnd = nil, origFogStart = nil, origFogColor = nil
 }
+
 TabCamera:AddSlider({ "بعد مجال الرويا", -100, 100, nil, 10, Callback = function(val)
 	camState.fovOffset = val
 	if camState.fovEnabled then camera.FieldOfView = math.clamp(70 + val, 1, 120) end
@@ -983,25 +2447,93 @@ TabCamera:AddToggle({ "كاميرا مراقبه", false, Callback = function(en
 		camState.cctvLabel.Text = "كاميرا مراقبه - بطاريه 84"
 		camState.cctvLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
 		camState.cctvLabel.TextSize = 14
+		camState.cctvLabel.Font = Enum.Font.GothamBold
 		camState.cctvLabel.ZIndex = 6
 	else
 		if camState.cctvEffect then camState.cctvEffect:Destroy() camState.cctvEffect = nil end
 		if camState.cctvLabel then camState.cctvLabel:Destroy() camState.cctvLabel = nil end
 	end
 end })
-TabCamera:AddToggle({ "كاميرا دايره سريعه", false, Callback = function(enabled)
+TabCamera:AddToggle({ "الكاميرا من تحت الارض", false, Callback = function(enabled)
 	if enabled then
 		camera.CameraType = Enum.CameraType.Scriptable
-		camState.orbitConn = RunService.RenderStepped:Connect(function(dt)
+		camState.wormConn = RunService.RenderStepped:Connect(function()
 			local char = Player.Character
 			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 			local hrp = char.HumanoidRootPart
-			camState.orbitAngle = camState.orbitAngle + dt * 5
-			camera.CFrame = CFrame.lookAt(hrp.Position + Vector3.new(math.cos(camState.orbitAngle) * 10, 5, math.sin(camState.orbitAngle) * 10), hrp.Position)
+			camera.CFrame = CFrame.lookAt(hrp.Position + Vector3.new(0, -2, -6), hrp.Position + Vector3.new(0, 2, 0))
 		end)
 	else
-		if camState.orbitConn then camState.orbitConn:Disconnect() camState.orbitConn = nil end
+		if camState.wormConn then camState.wormConn:Disconnect() camState.wormConn = nil end
 		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "كاميرا تتبع ثابته", false, Callback = function(enabled)
+	if enabled then
+		camState.fixedPos = camera.CFrame.Position
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.trackConn = RunService.RenderStepped:Connect(function()
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			camera.CFrame = CFrame.lookAt(camState.fixedPos, char.HumanoidRootPart.Position)
+		end)
+	else
+		if camState.trackConn then camState.trackConn:Disconnect() camState.trackConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "فلتر التسعينات", false, Callback = function(enabled)
+	if enabled then
+		camState.vintageEffect = Instance.new("ColorCorrectionEffect", Lighting)
+		camState.vintageEffect.TintColor = Color3.fromRGB(255, 220, 180)
+		camState.vintageEffect.Saturation = 0.3
+		camState.vintageEffect.Contrast = 0.2
+	else
+		if camState.vintageEffect then camState.vintageEffect:Destroy() camState.vintageEffect = nil end
+	end
+end })
+TabCamera:AddToggle({ "صور وشك وانت بتجري", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.backConn = RunService.RenderStepped:Connect(function()
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			camera.CFrame = CFrame.lookAt((hrp.CFrame * CFrame.new(0, 1.5, -8)).Position, hrp.Position + Vector3.new(0, 1.5, 0))
+		end)
+	else
+		if camState.backConn then camState.backConn:Disconnect() camState.backConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "كاميرا درون طايره", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.droneConn = RunService.RenderStepped:Connect(function()
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			local target = hrp.CFrame * CFrame.new(0, 12, 18)
+			camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(target.Position, hrp.Position), 0.05)
+		end)
+	else
+		if camState.droneConn then camState.droneConn:Disconnect() camState.droneConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "الكاميرا مقلوبه", false, Callback = function(enabled)
+	if enabled then
+		if not camState.upsideBound then
+			camState.upsideBound = true
+			RunService:BindToRenderStep("UpsideDownCam", Enum.RenderPriority.Camera.Value + 1, function()
+				camera.CFrame = camera.CFrame * CFrame.Angles(0, 0, math.pi)
+			end)
+		end
+	else
+		if camState.upsideBound then
+			RunService:UnbindFromRenderStep("UpsideDownCam")
+			camState.upsideBound = false
+		end
 	end
 end })
 TabCamera:AddToggle({ "فلتر ابيض واسود", false, Callback = function(enabled)
@@ -1011,6 +2543,65 @@ TabCamera:AddToggle({ "فلتر ابيض واسود", false, Callback = function
 		camState.grayEffect.Contrast = 0.15
 	else
 		if camState.grayEffect then camState.grayEffect:Destroy() camState.grayEffect = nil end
+	end
+end })
+TabCamera:AddToggle({ "تقريب وتبعيد", false, Callback = function(enabled)
+	if enabled then
+		camState.pulseConn = RunService.RenderStepped:Connect(function()
+			camera.FieldOfView = 70 + math.sin(tick() * 3) * 18
+		end)
+	else
+		if camState.pulseConn then camState.pulseConn:Disconnect() camState.pulseConn = nil end
+		camera.FieldOfView = 70
+	end
+end })
+TabCamera:AddToggle({ "لف الكاميرا بجانب", false, Callback = function(enabled)
+	if enabled then
+		camState.rollAngle = 0
+		if not camState.rollBound then
+			camState.rollBound = true
+			RunService:BindToRenderStep("CamRollSpin", Enum.RenderPriority.Camera.Value + 1, function(dt)
+				camState.rollAngle = camState.rollAngle + dt * 1.2
+				camera.CFrame = camera.CFrame * CFrame.Angles(0, 0, camState.rollAngle)
+			end)
+		end
+	else
+		if camState.rollBound then
+			RunService:UnbindFromRenderStep("CamRollSpin")
+			camState.rollBound = false
+			camState.rollAngle = 0
+		end
+	end
+end })
+TabCamera:AddToggle({ "وميض ابيض واسود", false, Callback = function(enabled)
+	if enabled then
+		camState.strobeFrame = Instance.new("Frame", Library.Gui)
+		camState.strobeFrame.Size = UDim2.new(999, 0, 999, 0)
+		camState.strobeFrame.Position = UDim2.new(-499, 0, -499, 0)
+		camState.strobeFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		camState.strobeFrame.BackgroundTransparency = 1
+		camState.strobeFrame.BorderSizePixel = 0
+		camState.strobeFrame.ZIndex = 9999
+		camState.strobeConn = RunService.RenderStepped:Connect(function()
+			camState.strobeFrame.BackgroundTransparency = math.random() > 0.55 and 0.4 or 1
+		end)
+	else
+		if camState.strobeConn then camState.strobeConn:Disconnect() camState.strobeConn = nil end
+		if camState.strobeFrame then camState.strobeFrame:Destroy() camState.strobeFrame = nil end
+	end
+end })
+TabCamera:AddToggle({ "ضباب كتير", false, Callback = function(enabled)
+	if enabled then
+		camState.origFogEnd = Lighting.FogEnd
+		camState.origFogStart = Lighting.FogStart
+		camState.origFogColor = Lighting.FogColor
+		Lighting.FogEnd = 45
+		Lighting.FogStart = 0
+		Lighting.FogColor = Color3.fromRGB(210, 210, 210)
+	else
+		Lighting.FogEnd = camState.origFogEnd
+		Lighting.FogStart = camState.origFogStart
+		Lighting.FogColor = camState.origFogColor
 	end
 end })
 
@@ -1038,6 +2629,7 @@ local selectedMusic = dropdownMusic
 local customMusicID = ""
 local soundSpeed, soundVolume, soundRange = 1, 1, 100
 local spamToggle, spamTask = false, nil
+
 local function isValidSongId(id)
 	if not id then return false end
 	local s = tostring(id):gsub("%s", "")
@@ -1054,6 +2646,7 @@ local function canPlaySong(id)
 	sound:Destroy()
 	return ok and isLoaded
 end
+
 TabSund:AddDropdown({ Title = "اختار الصوت", Options = musicOptions, Callback = function(selected)
 	dropdownMusic = musicList[selected] or ""
 	if customMusicID == "" then selectedMusic = dropdownMusic end
@@ -1071,6 +2664,7 @@ end })
 TabSund:AddSlider({ "سرعه الصوت", 5, 20, nil, 10, Callback = function(v) soundSpeed = v / 10 end })
 TabSund:AddSlider({ "قوه الصوت", 0, 10, nil, 1, Callback = function(v) soundVolume = v end })
 TabSund:AddSlider({ "مدى الصوت", 10, 300, nil, 100, Callback = function(v) soundRange = v end })
+
 local function playOnce()
 	if selectedMusic == "" then return end
 	if not isValidSongId(selectedMusic) then return end
@@ -1161,6 +2755,7 @@ local function FX(class, props)
 	inst.Parent = Lighting
 	return inst
 end
+
 QualityTab:AddButton({ "تحسين الظلال والاشعه", Callback = noop })
 local selShadow = nil
 QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"رجع الظلال طبيعيه", "اشعه الهيه", "شمس دهبيه", "ظلال قويه", "من غير ظلال (رفع FPS)", "توهج ناعم", "ضوء سماوي", "ظلال غامقه", "ضوء حجمي", "وميض العدسه", "اشعه الغروب", "تعريض ضوئي عالي"}, Callback = function(v) selShadow = v end })
@@ -1201,7 +2796,7 @@ QualityTab:AddButton({ "شغل التاثير", Callback = function()
 		elseif selRTX == "تشبع الوان قوي" then Clean() FX("ColorCorrectionEffect", {Saturation=3}) end
 	end)
 end })
-QualityTab:AddButton({ "تاثيرات العالم", Callback = noop })
+QualityTab:AddButton({ "تاثيرات العالم (بركان و كدا)", Callback = noop })
 local selApoc = nil
 QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"رجع طبيعي", "شتا نووي", "عاصفه رمليه", "ضباب سام", "Silent Hill", "نيران الجحيم", "عالم النباتات", "عالم الصدا", "اشعاع ازرق", "سقوط الرماد", "جفاف شديد", "نهايه العالم"}, Callback = function(v) selApoc = v end })
 QualityTab:AddButton({ "شغل التاثير", Callback = function()
@@ -1269,6 +2864,7 @@ end })
 
 local HouseTab = Library:MakeTab({ Title = "بيت الاعب" })
 local SignHack, HouseRGB, HouseTextRGB, BellSpam, PoolSpam, CurtainsSpam, GarageSpam, BabySpam, LockSpam, AutoDelete = false, false, false, false, false, false, false, false, false, false
+
 local function sendControl(interactionName, reArg)
 	local lot = 11
 	local lots = Workspace:FindFirstChild("001_Lots") or Workspace:FindFirstChild("Lots")
@@ -1291,6 +2887,7 @@ local function sendControl(interactionName, reArg)
 		end
 	end
 end
+
 local function ringBell()
 	pcall(function()
 		for _, desc in pairs(Workspace:GetDescendants()) do
@@ -1303,6 +2900,7 @@ local function ringBell()
 		end
 	end)
 end
+
 local function getHouseModel()
 	local lots = Workspace:FindFirstChild("001_Lots") or Workspace:FindFirstChild("Lots")
 	if not lots then return nil end
@@ -1312,6 +2910,7 @@ local function getHouseModel()
 	if not hp then return nil end
 	return hp:FindFirstChild("HouseModel")
 end
+
 local function deleteAllProps()
 	pcall(function()
 		local hm = getHouseModel()
@@ -1321,8 +2920,10 @@ local function deleteAllProps()
 		end
 	end)
 end
+
 local signWords = { "Zenix script on top", "monster is her", "Its come BACK", "RUN" }
 local signIndex = 1
+
 HouseTab:AddButton({ "تخريب البيت", Callback = noop })
 HouseTab:AddToggle({ "هاك لوحه البيت", false, Callback = function(v)
 	SignHack = v
@@ -1378,146 +2979,46 @@ HouseTab:AddToggle({ "الوان قوس قزح للوحه البيت", false, Ca
 end })
 HouseTab:AddToggle({ "سبام الجرس والباب", false, Callback = function(v)
 	BellSpam = v
-	if v then task.spawn(function() while BellSpam do ringBell() task.wait(0.2) end end) end
+	if v then
+		task.spawn(function() while BellSpam do ringBell() task.wait(0.2) end end)
+	end
 end })
-HouseTab:AddToggle({ "سبام المسبح", false, Callback = function(v)
+HouseTab:AddToggle({ "سبام المسبح (محتاج بريميوم)", false, Callback = function(v)
 	PoolSpam = v
-	if v then task.spawn(function() while PoolSpam do sendControl("HousePoolButton", "PoolOnOff") task.wait(0.2) end end) end
+	if v then
+		task.spawn(function() while PoolSpam do sendControl("HousePoolButton", "PoolOnOff") task.wait(0.2) end end)
+	end
 end })
 HouseTab:AddToggle({ "سبام الستاير", false, Callback = function(v)
 	CurtainsSpam = v
-	if v then task.spawn(function() while CurtainsSpam do sendControl("HouseCurtainsButton", "Curtains") task.wait(0.2) end end) end
+	if v then
+		task.spawn(function() while CurtainsSpam do sendControl("HouseCurtainsButton", "Curtains") task.wait(0.2) end end)
+	end
 end })
 HouseTab:AddToggle({ "سبام الجراج", false, Callback = function(v)
 	GarageSpam = v
-	if v then task.spawn(function() while GarageSpam do sendControl("HouseGarageButton", "GarageDoor") task.wait(7) end end) end
+	if v then
+		task.spawn(function() while GarageSpam do sendControl("HouseGarageButton", "GarageDoor") task.wait(7) end end)
+	end
 end })
 HouseTab:AddToggle({ "سبام ادوات الطفل", false, Callback = function(v)
 	BabySpam = v
-	if v then task.spawn(function() while BabySpam do sendControl("HouseBabyFurnitureButton", "BabyOptionYes") task.wait(0.2) end end) end
+	if v then
+		task.spawn(function() while BabySpam do sendControl("HouseBabyFurnitureButton", "BabyOptionYes") task.wait(0.2) end end)
+	end
 end })
 HouseTab:AddToggle({ "سبام قفل وفتح الابواب", false, Callback = function(v)
 	LockSpam = v
-	if v then task.spawn(function() while LockSpam do sendControl("HouseLockDoorButton", "LockDoors") task.wait(0.2) end end) end
+	if v then
+		task.spawn(function() while LockSpam do sendControl("HouseLockDoorButton", "LockDoors") task.wait(0.2) end end)
+	end
 end })
 HouseTab:AddButton({ "امسح كل اغراض البيت", Callback = function() deleteAllProps() end })
 HouseTab:AddToggle({ "سبام مسح اغراض البيت", false, Callback = function(v)
 	AutoDelete = v
-	if v then task.spawn(function() while AutoDelete do deleteAllProps() task.wait(0.3) end end) end
-end })
-
-local PetTab = Library:MakeTab({ Title = "رحمة حيوانات وتربيه" })
-PetTab:AddButton({ "خذ sign البيضاء", Callback = function() GetWhiteSign() end })
-local petTargetName = ""
-PetTab:AddTextBox({ "اسم الضحية", "", "اكتب اسم الضحية", Callback = function(v) petTargetName = v end })
-local petSignText = ""
-PetTab:AddTextBox({ "النص", "", "اكتب النص هنا", Callback = function(v) petSignText = v end })
-PetTab:AddButton({ "تغيير لوحة الضحية", Callback = function()
-	if petSignText == "" or petTargetName == "" then return end
-	local lower = petTargetName:lower()
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p.Name:lower():find(lower, 1, true) and #lower >= 2 then
-			local char = p.Character
-			WriteOnSign(char and char:FindFirstChild("Sign"), petSignText)
-		end
+	if v then
+		task.spawn(function() while AutoDelete do deleteAllProps() task.wait(0.3) end end)
 	end
-end })
-PetTab:AddButton({ "تغيير لوحتي أنا", Callback = function()
-	if petSignText == "" then return end
-	local char = LocalPlayer.Character
-	WriteOnSign(char and char:FindFirstChild("Sign"), petSignText)
-end })
-PetTab:AddButton({ "تغيير لوح كل السيرفر", Callback = function()
-	if petSignText == "" then return end
-	for _, p in ipairs(Players:GetPlayers()) do
-		local char = p.Character
-		WriteOnSign(char and char:FindFirstChild("Sign"), petSignText)
-	end
-end })
-
-local petNewName = ""
-PetTab:AddTextBox({ "اسم الحيوان الجديد", "", "اكتب اسم الحيوان", Callback = function(v) petNewName = v end })
-local petChangeBtn = PetTab:AddButton({ "تغيير اسم الحيوان", Callback = function()
-	if petNewName == "" then return end
-	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-	if remotes then
-		local ev = remotes:FindFirstChild("Pet_SetName")
-		if ev then pcall(function() ev:FireServer(petNewName) end) end
-	end
-end })
-createCountdown(petChangeBtn)
-
-local kidNewName = ""
-PetTab:AddTextBox({ "اسم الطفل الجديد", "", "اكتب اسم الطفل", Callback = function(v) kidNewName = v end })
-local kidChangeBtn = PetTab:AddButton({ "تغيير اسم الطفل", Callback = function()
-	if kidNewName == "" then return end
-	local re = ReplicatedStorage:FindFirstChild("RE")
-	if re then
-		local ev = re:FindFirstChild("1RPNam1eTex1t")
-		if ev then pcall(function() ev:FireServer("RolePlayFollow", kidNewName) end) end
-	end
-end })
-createCountdown(kidChangeBtn)
-
-local petTabSignRainbow = false
-PetTab:AddToggle({ "تلوين نص اللوحة رينبو", false, Callback = function(state)
-	petTabSignRainbow = state
-	if not state then return end
-	task.spawn(function()
-		local colors = getSignRainbowColors()
-		if not colors or #colors == 0 then petTabSignRainbow = false; return end
-		local i = 1
-		while petTabSignRainbow do
-			local sign = getLocalSignForRainbow()
-			if sign then
-				local remote = sign:FindFirstChild("ToolSound")
-				if remote and colors[i] then pcall(function() remote:FireServer("Sign", "SignColor", colors[i]) end) end
-			end
-			i = i + 1
-			if i > #colors then i = 1 end
-			task.wait(1 / rainbowSpeed)
-		end
-	end)
-end })
-
-local petTabPetRainbow = false
-PetTab:AddToggle({ "تلوين اسم الحيوان رينبو", false, Callback = function(state)
-	petTabPetRainbow = state
-	if not state then return end
-	task.spawn(function()
-		local i = 1
-		while petTabPetRainbow do
-			local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-			if remotes then
-				local ev = remotes:FindFirstChild("Pet_SetNameColor")
-				if ev and petColorNames[i] then pcall(function() ev:FireServer(petColorNames[i]) end) end
-			end
-			i = i + 1
-			if i > #petColorNames then i = 1 end
-			task.wait(1 / rainbowSpeed)
-		end
-	end)
-end })
-
-local petTabKidRainbow = false
-PetTab:AddToggle({ "تلوين اسماء الاطفال", false, Callback = function(state)
-	petTabKidRainbow = state
-	if not state then return end
-	task.spawn(function()
-		local colors = getKidsColors()
-		if not colors or #colors == 0 then petTabKidRainbow = false; return end
-		local i = 1
-		while petTabKidRainbow do
-			local re = ReplicatedStorage:FindFirstChild("RE")
-			if re then
-				local ev = re:FindFirstChild("1RPNam1eColo1r")
-				if ev and colors[i] then pcall(function() ev:FireServer("PickingRPFollowColor", colors[i]) end) end
-			end
-			i = i + 1
-			if i > #colors then i = 1 end
-			task.wait(1 / rainbowSpeed)
-		end
-	end)
 end })
 
 local ChildTab = Library:MakeTab({ Title = "رحمة الطفل" })
@@ -1555,6 +3056,7 @@ ChildTab:AddToggle({ "راقبه", false, Callback = function(state)
 	end
 end })
 ChildTab:AddToggle({ "رسبن الطفل او احذفه", false, Callback = function(state)
+	local pl = LocalPlayer
 	if state then
 		pcall(function()
 			ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("SpawnChild", "BabyBoy")
@@ -1680,6 +3182,54 @@ ChildTab:AddToggle({ "بانق وش الطفل", false, Callback = function(Valu
 	else
 		if connection2 then connection2:Disconnect() connection2 = nil end
 	end
+end })
+
+
+local PetsTab = Library:MakeTab({ Title = "رحمة حيوانات وتربيه" })
+local petSelectedPlayer = nil
+local function GetPlayersListPets()
+	local list = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then table.insert(list, plr.Name) end
+	end
+	if #list == 0 then return {"مافيش لاعبين"} end
+	return list
+end
+local PetPlayerDropdown = PetsTab:AddDropdown({ Title = "اختار اللاعب", Options = GetPlayersListPets(), Callback = function(v)
+	if v == "مافيش لاعبين" then petSelectedPlayer = nil else petSelectedPlayer = v end
+end })
+PetsTab:AddButton({ "حدث اللاعبين", Callback = function()
+	if PetPlayerDropdown and PetPlayerDropdown.Refresh then PetPlayerDropdown:Refresh(GetPlayersListPets()) end
+end })
+local petNameSet = ""
+PetsTab:AddTextBox({ "اسم الحيوان", "", "اكتب اسم الحيوان", Callback = function(v) petNameSet = v end })
+PetsTab:AddButton({ "غير اسم الحيوان", Callback = function()
+	if petNameSet == "" then return end
+	pcall(function()
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		if remotes and remotes:FindFirstChild("Pet_SetName") then
+			remotes.Pet_SetName:FireServer(petNameSet)
+		end
+	end)
+end })
+local petRainbowOn = false
+PetsTab:AddToggle({ "تلوين اسم الحيوان رينبو", false, Callback = function(state)
+	petRainbowOn = state
+	if not state then return end
+	local colors = {"Royal purple", "Really blue", "Toothpaste", "Lime green", "Really red", "Pink", "Institutional white"}
+	task.spawn(function()
+		local i = 1
+		while petRainbowOn do
+			pcall(function()
+				local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+				if remotes and remotes:FindFirstChild("Pet_SetNameColor") and colors[i] then
+					remotes.Pet_SetNameColor:FireServer(colors[i])
+				end
+			end)
+			i = i % #colors + 1
+			task.wait(0.15)
+		end
+	end)
 end })
 
 local TabBriefcase = Library:MakeTab({ Title = "ادوات الحقيبه" })
@@ -1848,6 +3398,7 @@ ColoringTab:AddToggle({ "تلوين الجسم", false, Callback = function(v)
 	end
 end })
 ColoringTab:AddSlider({ "سرعه التلوين", 1, 5, nil, 3, Callback = function(Value) end })
+
 local rainbowHandToolEnabled = false
 ColoringTab:AddToggle({ "لون اي اداه تيجي في يدك", false, Callback = function(state)
 	rainbowHandToolEnabled = state
@@ -1904,6 +3455,7 @@ end
 local FunTab = Library:MakeTab({ Title = "تخريب على الاعبين" })
 local funSelectedPlayer = nil
 local headSitConn = nil
+
 local function getOtherPlayers()
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -1911,6 +3463,7 @@ local function getOtherPlayers()
 	end
 	return list
 end
+
 FunTab:AddButton({ "اختار الاعب", Callback = noop })
 local funDrop = FunTab:AddDropdown({ Title = "اختار مين", Options = getOtherPlayers(), Callback = function(v) funSelectedPlayer = v end })
 FunTab:AddButton({ "حدث القائمه", Callback = function() if funDrop and funDrop.Refresh then funDrop:Refresh(getOtherPlayers()) end end })
@@ -1971,6 +3524,65 @@ FunTab:AddToggle({ "سبام دعوات لكل السرفر", false, Callback = 
 		end)
 	end
 end })
+local funSignText = ""
+FunTab:AddTextBox({ "اكتب اللي عايزه علي اللوحه", "", "اكتب الكلام هنا", Callback = function(v) funSignText = v end })
+local function WriteOnSignFun(signTool, text)
+	if not signTool or text == "" then return false end
+	local remote = signTool:FindFirstChild("ToolSound")
+	if not remote then return false end
+	pcall(function()
+		remote:FireServer("Sign", "Open")
+		task.wait(0.2)
+		remote:FireServer("Sign", "SignWords", text)
+		task.wait(0.1)
+		remote:FireServer("Sign", "Close")
+	end)
+	return true
+end
+local function findSignOn(plr)
+	if not plr then return nil end
+	local char = plr.Character
+	if char then
+		local s = char:FindFirstChild("Sign")
+		if s then return s end
+	end
+	local bp = plr:FindFirstChild("Backpack")
+	if bp then return bp:FindFirstChild("Sign") end
+	return nil
+end
+FunTab:AddButton({ "تغيير لوحة الضحية", Callback = function()
+	if not funSelectedPlayer or funSignText == "" then return end
+	local target = Players:FindFirstChild(funSelectedPlayer)
+	if target then WriteOnSignFun(findSignOn(target), funSignText) end
+end })
+FunTab:AddButton({ "تغيير لوحتي أنا", Callback = function()
+	if funSignText == "" then return end
+	local sign = findSignOn(LocalPlayer)
+	if not sign then
+		pcall(function()
+			local RE = ReplicatedStorage:FindFirstChild("RE")
+			if RE and RE:FindFirstChild("1Too1l") then
+				RE["1Too1l"]:InvokeServer("PickingTools", "Sign")
+			end
+		end)
+		task.wait(1)
+		sign = findSignOn(LocalPlayer)
+		if sign then
+			local char = LocalPlayer.Character
+			local hum = char and char:FindFirstChild("Humanoid")
+			if hum and sign.Parent ~= char then pcall(function() hum:EquipTool(sign) end) end
+			task.wait(0.4)
+			sign = findSignOn(LocalPlayer)
+		end
+	end
+	if sign then WriteOnSignFun(sign, funSignText) end
+end })
+FunTab:AddButton({ "تغيير لوح كل السيرفر", Callback = function()
+	if funSignText == "" then return end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		WriteOnSignFun(findSignOn(plr), funSignText)
+	end
+end })
 FunTab:AddButton({ "ارسل رسالة تحذير لكل السرفر", Callback = function()
 	pcall(function() ReplicatedStorage.Remotes.GunEquip:InvokeServer("Assault", "StockAssault") end)
 	for _, v in ipairs(LocalPlayer.Backpack:GetChildren()) do
@@ -1980,33 +3592,6 @@ FunTab:AddButton({ "ارسل رسالة تحذير لكل السرفر", Callbac
 	if hrp then
 		hrp.CFrame = CFrame.new(333, 4, 68)
 		LocalPlayer.Character.Humanoid:MoveTo(Vector3.new(333, 4, 80))
-	end
-end })
-FunTab:AddButton({ "خذ sign البيضاء", Callback = function() GetWhiteSign() end })
-local funTargetName = ""
-FunTab:AddTextBox({ "اسم الضحية", "", "اكتب اسم الضحية", Callback = function(v) funTargetName = v end })
-local funSignText = ""
-FunTab:AddTextBox({ "النص", "", "اكتب النص هنا", Callback = function(v) funSignText = v end })
-FunTab:AddButton({ "تغيير لوحة الضحية", Callback = function()
-	if funSignText == "" or funTargetName == "" then return end
-	local lower = funTargetName:lower()
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p.Name:lower():find(lower, 1, true) and #lower >= 2 then
-			local char = p.Character
-			WriteOnSign(char and char:FindFirstChild("Sign"), funSignText)
-		end
-	end
-end })
-FunTab:AddButton({ "تغيير لوحتي أنا", Callback = function()
-	if funSignText == "" then return end
-	local char = LocalPlayer.Character
-	WriteOnSign(char and char:FindFirstChild("Sign"), funSignText)
-end })
-FunTab:AddButton({ "تغيير لوح كل السيرفر", Callback = function()
-	if funSignText == "" then return end
-	for _, p in ipairs(Players:GetPlayers()) do
-		local char = p.Character
-		WriteOnSign(char and char:FindFirstChild("Sign"), funSignText)
 	end
 end })
 local iceSwitchRunning = false
@@ -2269,11 +3854,13 @@ local noShapeEnabled = false
 local rainbowMoveRunning = false
 local moveTime = 0
 local landPositions = {}
+
 local moveShapesList = {
 	"ذيل قرش", "جناحات", "جناحات مختلفه", "اعصار صغير", "orbit",
 	"حبل", "ني* قدامك", "ذيل", "ز*", "اكس خلف الاعب",
 	"دائره خلف الاعب", "مربع خلف الاعب", "عشوائي بلارض", "يد واصبع", "ز* 67"
 }
+
 local function getMovePlayersList()
 	local list = { "على نفسك" }
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -2281,6 +3868,7 @@ local function getMovePlayersList()
 	end
 	return list
 end
+
 moveTab:AddSlider({ "السرعة", 0, 20, nil, 5, Callback = function(v) moveSpeed = v end })
 moveTab:AddSlider({ "المسافة", 0, 100, nil, 10, Callback = function(v) moveDistance = v end })
 moveTab:AddSlider({ "الارتفاع", -80, 80, nil, 0, Callback = function(v) moveHeight = v end })
@@ -2308,6 +3896,7 @@ moveTab:AddButton({ "هات الصندوق", Callback = function()
 		tool.Parent = char
 	end
 end })
+
 local shapeToggle, noShapeToggle
 shapeToggle = moveTab:AddToggle({ "تشغيل حركات الprops انت اخترتها", false, Callback = function(state)
 	moveShapeEnabled = state
@@ -2457,6 +4046,7 @@ local PropsRobotsTab = Library:MakeTab({ Title = "تخريب props اقوى شي
 local targetNames = { "", "", "", "", "", "", "", "", "", "" }
 local hasVIP = false
 local fixedVictimCount = 15
+
 PropsRobotsTab:AddButton({ "ترا لو كتبت اسامي ناس كثيره بيقل الprops عليهم", Callback = noop })
 for i = 1, 10 do
 	local idx = i
@@ -2468,19 +4058,25 @@ PropsRobotsTab:AddDropdown({ Title = "نوع الprop", Options = propNames, Cal
 	end
 end })
 PropsRobotsTab:AddToggle({ "VIP (20 بروب)", false, Callback = function(v) hasVIP = v end })
+
 local function findPlayerByText(txt)
 	if txt == "" or txt == "على نفسك" or txt == "على نفسي" or txt == "self" or txt == "نفسي" then
 		return LocalPlayer
 	end
 	local lowerText = string.lower(txt)
 	for _, p in ipairs(Players:GetPlayers()) do
-		if string.lower(p.Name) == lowerText or string.lower(p.DisplayName) == lowerText then return p end
+		if string.lower(p.Name) == lowerText or string.lower(p.DisplayName) == lowerText then
+			return p
+		end
 	end
 	for _, p in ipairs(Players:GetPlayers()) do
-		if string.find(string.lower(p.Name), lowerText, 1, true) or string.find(string.lower(p.DisplayName), lowerText, 1, true) then return p end
+		if string.find(string.lower(p.Name), lowerText, 1, true) or string.find(string.lower(p.DisplayName), lowerText, 1, true) then
+			return p
+		end
 	end
 	return nil
 end
+
 local function resolveTargets()
 	local list = {}
 	local seen = {}
@@ -2497,6 +4093,7 @@ local function resolveTargets()
 	if #list == 0 then table.insert(list, LocalPlayer) end
 	return list
 end
+
 local singleBackEnabled, singleBackConn = false, nil
 PropsRobotsTab:AddToggle({ "بانق prop 1", false, Callback = function(state)
 	singleBackEnabled = state
@@ -2536,6 +4133,7 @@ PropsRobotsTab:AddToggle({ "بانق prop 1", false, Callback = function(state)
 		end)
 	end)
 end })
+
 local singleFaceEnabled, singleFaceConn = false, nil
 PropsRobotsTab:AddToggle({ "بانق وجه prop 1", false, Callback = function(state)
 	singleFaceEnabled = state
@@ -2575,6 +4173,7 @@ PropsRobotsTab:AddToggle({ "بانق وجه prop 1", false, Callback = function(
 		end)
 	end)
 end })
+
 local singleCombinedEnabled, singleCombinedConn = false, nil
 PropsRobotsTab:AddToggle({ "دمج بانق وجه وضهر prop 1", false, Callback = function(state)
 	singleCombinedEnabled = state
@@ -2623,6 +4222,7 @@ PropsRobotsTab:AddToggle({ "دمج بانق وجه وضهر prop 1", false, Call
 		end)
 	end)
 end })
+
 local activeMode, activeConn, activeSpawnTask = nil, nil, nil
 local suppressCb = false
 local allToggles = {}
@@ -2975,3 +4575,25 @@ TabCopy:AddButton({ "حذف جميع الملابس", Callback = function()
 	ClearAllClothingAndAccs()
 	isRunning = false
 end })
+task.spawn(function()
+	task.wait(2)
+	warn("[Zenix] tabs created:", _zenixTabsCreated)
+	pcall(function()
+		if Library.Show then Library.Show() end
+	end)
+	pcall(function()
+		if Library.Frame then Library.Frame.Visible = true end
+	end)
+	-- try make tab list visible
+	pcall(function()
+		local gui = Library.Gui or (game:GetService("CoreGui"):FindFirstChild("ZenixDarkJoker") or game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui") and game.Players.LocalPlayer.PlayerGui:FindFirstChildWhichIsA("ScreenGui"))
+		if gui then
+			for _, d in ipairs(gui:GetDescendants()) do
+				if d.Name == "TabButtons" or d.Name == "Tabs" or d.Name == "TabList" then
+					d.Visible = true
+					warn("[Zenix] found tab container", d:GetFullName(), "#children", #d:GetChildren())
+				end
+			end
+		end
+	end)
+end)
