@@ -1,0 +1,2977 @@
+local Library = loadstring(game:HttpGet("https://z2vh.lovable.app/raw/npfxivhpu2"))()
+if not Library then return end
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local LocalPlayer = Player
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local TextChatService = game:GetService("TextChatService")
+local VirtualUser = game:GetService("VirtualUser")
+local ContentProvider = game:GetService("ContentProvider")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+local function noop() end
+
+local originalMakeTab = Library.MakeTab
+function Library:MakeTab(config)
+	local tab = originalMakeTab(self, config)
+	tab._page = nil
+	local function detectPage(element)
+		if tab._page then return end
+		if element and element.Parent and element.Parent:IsA("ScrollingFrame") then
+			tab._page = element.Parent
+			local function refresh()
+				if tab._page and tab._page.Parent then
+					local uiList = tab._page:FindFirstChildOfClass("UIListLayout")
+					if uiList then
+						tab._page.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y + 60)
+					end
+				end
+			end
+			tab._page:GetPropertyChangedSignal("Parent"):Connect(function() task.delay(0.2, refresh) end)
+			task.delay(0.5, refresh)
+			task.delay(1.5, refresh)
+		end
+	end
+	local origAddButton = tab.AddButton
+	function tab:AddButton(cfg)
+		local btn = origAddButton(self, cfg)
+		detectPage(btn)
+		return btn
+	end
+	local origToggle = tab.AddToggle
+	function tab:AddToggle(cfg)
+		if cfg.Title and not cfg[1] then cfg = { cfg.Title, cfg.Default or false, Callback = cfg.Callback } end
+		local before = {}
+		if tab._page then for _, c in ipairs(tab._page:GetChildren()) do before[c] = true end end
+		local result = origToggle(self, cfg)
+		if tab._page and result then
+			for _, c in ipairs(tab._page:GetChildren()) do
+				if not before[c] and c:IsA("TextButton") then result.Frame = c; break end
+			end
+		end
+		if not tab._page and result and result.Frame then detectPage(result.Frame) end
+		return result
+	end
+	local origSlider = tab.AddSlider
+	function tab:AddSlider(cfg)
+		if cfg.Title and not cfg[1] then cfg = { cfg.Title, cfg.Min or 0, cfg.Max or 100, nil, cfg.Default or 50, Callback = cfg.Callback } end
+		local result = origSlider(self, cfg)
+		detectPage(result)
+		return result
+	end
+	local origTextBox = tab.AddTextBox
+	function tab:AddTextBox(cfg)
+		if cfg.Title and not cfg[1] then cfg = { cfg.Title, cfg.Default or "", cfg.PlaceholderText or cfg.Placeholder, Callback = cfg.Callback } end
+		local result = origTextBox(self, cfg)
+		detectPage(result)
+		return result
+	end
+	return tab
+end
+
+_G.ZainCustomColors = true
+_G.ColorSpeed = 10
+_G.customColors = { Color3.fromRGB(0, 0, 0), Color3.fromRGB(255, 255, 255) }
+
+task.spawn(function()
+	local success, rpEvent = pcall(function() return ReplicatedStorage:WaitForChild("RE", 5):WaitForChild("1RPNam1eTex1t") end)
+	if success and rpEvent then
+		local rpName = "ȤҼɳιx Ԃαɾƙ ʝσƙҽɾ"
+		local rpBio = "ωєℓcσмє " .. Player.DisplayName .. " τσ jσiη мy τєαм"
+		pcall(function()
+			rpEvent:FireServer("RolePlayName", rpName)
+			rpEvent:FireServer("RolePlayBio", rpBio)
+		end)
+	end
+end)
+
+task.spawn(function()
+	local t = 0
+	while task.wait(0.05) do
+		pcall(function()
+			local RE = ReplicatedStorage:FindFirstChild("RE")
+			if RE and _G.ZainCustomColors and _G.customColors and #_G.customColors >= 2 then
+				t = t + (_G.ColorSpeed / 100)
+				local len = #_G.customColors
+				local i1 = (math.floor(t) % len) + 1
+				local i2 = (i1 % len) + 1
+				local c = _G.customColors[i1]:Lerp(_G.customColors[i2], t % 1)
+				local cr = RE:FindFirstChild("1RPNam1eColo1r")
+				if cr then
+					cr:FireServer("PickingRPNameColor", c)
+					cr:FireServer("PickingRPBioColor", c)
+				end
+			end
+		end)
+	end
+end)
+
+local function PickTool(toolName)
+	pcall(function()
+		local RE = ReplicatedStorage:FindFirstChild("RE") or workspace:FindFirstChild("RE")
+		if RE then
+			local b_tool = RE:FindFirstChild("1Too1l") or RE:FindFirstChild("1Tool1") or RE:FindFirstChild("1Tool1s")
+			if b_tool then b_tool:InvokeServer("PickingTools", toolName) end
+		end
+	end)
+	task.spawn(function()
+		task.wait(0.4)
+		local backpack = LocalPlayer:FindFirstChild("Backpack")
+		local char = LocalPlayer.Character
+		local tool
+		if backpack then tool = backpack:FindFirstChild(toolName) end
+		if not tool and char then tool = char:FindFirstChild(toolName) end
+		if tool and char then
+			local hum = char:FindFirstChild("Humanoid")
+			if hum then pcall(function() hum:EquipTool(tool) end) end
+		end
+	end)
+end
+
+local function WriteOnSign(signTool, text)
+	if signTool then
+		local remote = signTool:FindFirstChild("ToolSound")
+		if remote then
+			pcall(function() remote:FireServer("Sign", "Open") end)
+			task.wait(0.2)
+			pcall(function() remote:FireServer("Sign", "SignWords", text) end)
+			task.wait(0.1)
+			pcall(function() remote:FireServer("Sign", "Close") end)
+			return true
+		end
+	end
+	return false
+end
+
+local function GetWhiteSign()
+	pcall(function()
+		local RE = ReplicatedStorage:FindFirstChild("RE")
+		if RE then
+			local b_tool = RE:FindFirstChild("1Too1l")
+			if b_tool then b_tool:InvokeServer("PickingTools", "Sign") end
+		end
+	end)
+	task.spawn(function()
+		task.wait(0.6)
+		local char = LocalPlayer.Character
+		local backpack = LocalPlayer:FindFirstChild("Backpack")
+		if not char then return end
+		local signTool = nil
+		if backpack then signTool = backpack:FindFirstChild("Sign") end
+		if not signTool then signTool = char:FindFirstChild("Sign") end
+		if signTool then
+			local hum = char:FindFirstChild("Humanoid")
+			if hum and signTool.Parent ~= char then
+				pcall(function() hum:EquipTool(signTool) end)
+			end
+		end
+	end)
+end
+
+task.wait(0.5)
+
+local countdowns = {}
+local function createCountdown(btn)
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 1, 0)
+	lbl.Position = UDim2.new(0, 0, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = ""
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.FontFace = Font.new("rbxassetid://12187360881")
+	lbl.TextSize = 18
+	lbl.TextStrokeTransparency = 0.3
+	lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	lbl.ZIndex = 30
+	lbl.Visible = false
+	lbl.Parent = btn
+	local state = { value = 60, max = 60, active = false, label = lbl }
+	table.insert(countdowns, state)
+	return state
+end
+local function startCountdown(state)
+	state.value = state.max
+	state.active = true
+	if state.label then
+		state.label.Text = tostring(state.value)
+		state.label.Visible = true
+	end
+end
+task.spawn(function()
+	while task.wait(1) do
+		for _, state in ipairs(countdowns) do
+			if state.active then
+				state.value = state.value - 1
+				if state.value <= 0 then
+					state.active = false
+					if state.label then
+						state.label.Text = ""
+						state.label.Visible = false
+					end
+				else
+					if state.label then state.label.Text = tostring(state.value) end
+				end
+			end
+		end
+	end
+end)
+
+local rpCountdown = { value = 60, max = 60, active = false, label = nil }
+local bioCountdown = { value = 60, max = 60, active = false, label = nil }
+table.insert(countdowns, rpCountdown)
+table.insert(countdowns, bioCountdown)
+
+local rpLabel, bioLabel = nil, nil
+local lastRP, lastBio = nil, nil
+local rpBioInitialized = false
+
+local function findBillboardLabels()
+	local char = LocalPlayer.Character
+	if not char then return nil end
+	local labels = {}
+	for _, desc in ipairs(char:GetDescendants()) do
+		if desc:IsA("TextLabel") then
+			local p = desc
+			local isBB = false
+			for _ = 1, 10 do
+				p = p.Parent
+				if not p then break end
+				if p:IsA("BillboardGui") then isBB = true; break end
+			end
+			if isBB then table.insert(labels, desc) end
+		end
+	end
+	table.sort(labels, function(a, b) return (a.TextSize or 0) > (b.TextSize or 0) end)
+	return labels
+end
+
+task.spawn(function()
+	while task.wait(0.25) do
+		local labels = findBillboardLabels()
+		if not labels or #labels == 0 then
+			rpLabel, bioLabel = nil, nil
+			lastRP, lastBio = nil, nil
+			rpBioInitialized = false
+		else
+			if not rpLabel or not rpLabel.Parent then
+				rpLabel = labels[1]
+				lastRP = rpLabel and rpLabel.Text or nil
+			end
+			if not bioLabel or not bioLabel.Parent then
+				if #labels >= 2 then
+					bioLabel = labels[2]
+					lastBio = bioLabel and bioLabel.Text or nil
+				end
+			end
+			if rpLabel and rpLabel.Parent then
+				if rpBioInitialized and lastRP ~= nil and rpLabel.Text ~= lastRP then
+					lastRP = rpLabel.Text
+					startCountdown(rpCountdown)
+				else
+					lastRP = rpLabel.Text
+				end
+			end
+			if bioLabel and bioLabel.Parent then
+				if rpBioInitialized and lastBio ~= nil and bioLabel.Text ~= lastBio then
+					lastBio = bioLabel.Text
+					startCountdown(bioCountdown)
+				else
+					lastBio = bioLabel.Text
+				end
+			end
+			rpBioInitialized = true
+		end
+	end
+end)
+
+local rainbowSpeed = 20
+
+local rightsTab = Library:MakeTab({ Title = "حقوق زينكس" })
+rightsTab:AddButton({ "حقوق المطور Zenix وحقوق التبويبات تحت", Callback = noop })
+rightsTab:AddButton({ "الادمن الاساسي joo", Callback = noop })
+rightsTab:AddButton({ "الالقاب فوق الراس تدل على جهود الشخص في السكربت زي:", Callback = noop })
+rightsTab:AddButton({ "المطورين - 1", Callback = noop })
+rightsTab:AddButton({ "الادمن - 2", Callback = noop })
+rightsTab:AddButton({ "مساعدين - 3", Callback = noop })
+rightsTab:AddButton({ "الاعضاء المهمه - 4", Callback = noop })
+rightsTab:AddButton({ "عضو - 5", Callback = noop })
+rightsTab:AddButton({ "قوة القب تبدا من 1 ل 5 والاعضاء ما يظهر لهم القاب", Callback = noop })
+rightsTab:AddButton({ "لو عايز رتبه اصنع فيديو عن انجاز عملته في السكربت زي مشاهدات", Callback = noop })
+rightsTab:AddButton({ "الرتب اللي تتعطى للناس لقب زي tik toker او اسمه", Callback = noop })
+rightsTab:AddButton({ "ده تيك توك Zenix عشان تتواصل معاه وتقدم الرتب", Callback = noop })
+rightsTab:AddButton({ "tiktok.com/@zenix_xlm", Callback = function() pcall(function() if setclipboard then setclipboard("tiktok.com/@zenix_xlm") end end) end })
+rightsTab:AddButton({ "سيرفر الديسكورد بنتجمع فيه وكمان فيه فك تشفير للمطورين", Callback = noop })
+rightsTab:AddButton({ "https://discord.gg/reFFNKH9Z", Callback = function() pcall(function() if setclipboard then setclipboard("https://discord.gg/reFFNKH9Z") end end) end })
+
+local Tab1 = Library:MakeTab({ Title = "اللاعب" })
+Tab1:AddSlider({ "السرعة", 1, 350, nil, 16, Callback = function(v)
+	if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = v end
+end })
+Tab1:AddButton({ "رجع السرعة طبيعية", Callback = function()
+	if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = 16 end
+end })
+Tab1:AddSlider({ "القفز", 1, 500, nil, 50, Callback = function(v)
+	if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.JumpPower = v end
+end })
+Tab1:AddButton({ "رجع القفز طبيعي", Callback = function()
+	if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.JumpPower = 50 end
+end })
+Tab1:AddSlider({ "الجاذبية", 0, 500, nil, 196, Callback = function(v) Workspace.Gravity = v end })
+Tab1:AddButton({ "رجع الجاذبية طبيعية", Callback = function() Workspace.Gravity = 196.2 end })
+
+Tab1:AddButton({ "افكتات تظهر للكل", Callback = noop })
+local effectsRemote
+pcall(function() effectsRemote = ReplicatedStorage:WaitForChild("Remotes", 5):WaitForChild("ApplyEmmiter", 5) end)
+local effectsList = {
+	["ابيض مجاني"] = "0002FreeWhite", ["اصفر مجاني"] = "0003FreeYellow",
+	["برتقالي مجاني"] = "0004FreeOrange", ["اخضر مجاني"] = "0005FreeGreen",
+	["ازرق مجاني"] = "0006FreeBlue", ["بنفسجي مجاني"] = "0007FreePurple",
+	["زهري مجاني"] = "0008FreePink", ["احمر مجاني"] = "0009FreeRed",
+	["قلوب صفراء"] = "001HeartsYellow", ["قلوب خضراء"] = "002HeartsGreen",
+	["قلوب زرقاء"] = "003HeartsBlue", ["قلوب بنفسجيه"] = "004HeartsPurple",
+	["قلوب زهريه"] = "005HeartsPink", ["قلوب حمراء"] = "006HeartsRed",
+	["نجوم وميض ابيض"] = "020TwinkleWhite", ["نجوم وميض اصفر"] = "021TwinkleYellow",
+	["نجوم وميض اخضر"] = "022TwinkleGreen", ["نجوم وميض بنفسجي"] = "023TwinklePurple",
+	["نجوم وميض زهري"] = "024TwinklePink", ["نجوم وميض احمر"] = "025TwinkleRed",
+	["نار بيضاء"] = "030FireWhite", ["نار برتقاليه"] = "031FireOrange",
+	["نار خضراء"] = "032FireGreen", ["نار زرقاء"] = "033FireBlue",
+	["نار بنفسجيه"] = "034FirePurple", ["نار سوداء"] = "035FireBlack",
+	["شرر ابيض"] = "050SparksWhite", ["شرر اخضر"] = "051SparksGreen",
+	["شرر ازرق"] = "052SparksBlue", ["شرر بنفسجي"] = "053SparksPurple",
+	["شرر زهري"] = "054SparksPink", ["شرر احمر"] = "055SparksRed",
+	["دخان ابيض"] = "080SmokeWhite", ["دخان اصفر"] = "081SmokeYellow",
+	["دخان برتقالي"] = "082SmokeOrange", ["دخان اخضر"] = "083SmokeGreen",
+	["دخان ازرق"] = "084SmokeBlue", ["دخان بنفسجي"] = "085SmokePurple",
+	["دخان احمر"] = "086SmokeRed", ["دخان اسود"] = "087SmokeBlack",
+	["نجوم بيضاء"] = "090StarWhite", ["نجوم برتقاليه"] = "091StarOrange",
+	["نجوم خضراء"] = "092StarGreen", ["نجوم زرقاء"] = "093StarBlue",
+	["نجوم بنفسجيه"] = "094StarPurple", ["نجوم زهريه"] = "095StarPink",
+	["نجوم حمراء"] = "096StarRed"
+}
+local effectOptions = {}
+for name, _ in pairs(effectsList) do table.insert(effectOptions, name) end
+table.sort(effectOptions)
+local selectedEffect = effectOptions[1]
+Tab1:AddDropdown({ Title = "اختار افكت", Options = effectOptions, Callback = function(v) selectedEffect = v end })
+Tab1:AddToggle({ "تفعيل الافكت", false, Callback = function(state)
+	if state and selectedEffect and effectsRemote then
+		pcall(function() effectsRemote:InvokeServer(LocalPlayer.UserId, effectsList[selectedEffect]) end)
+	elseif effectsRemote then
+		pcall(function() effectsRemote:InvokeServer(0, "Clear") end)
+	end
+end })
+
+Tab1:AddButton({ "اقتل نفسك", Callback = function()
+	local char = LocalPlayer.Character
+	if char and char:FindFirstChild("Humanoid") then char.Humanoid.Health = 0 end
+end })
+Tab1:AddButton({ "rejoin", Callback = function()
+	pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
+end })
+Tab1:AddButton({ "server hop", Callback = function()
+	pcall(function()
+		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+		local response = HttpService:JSONDecode(game:HttpGet(url))
+		for _, server in ipairs(response.data) do
+			if server.playing < server.maxPlayers and server.id ~= game.JobId then
+				TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+				return
+			end
+		end
+		TeleportService:Teleport(game.PlaceId, LocalPlayer)
+	end)
+end })
+
+local infJumpEnabled = false
+Tab1:AddToggle({ "قفز لا نهائي", false, Callback = function(state) infJumpEnabled = state end })
+UserInputService.JumpRequest:Connect(function()
+	if infJumpEnabled then
+		local char = LocalPlayer.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end) end
+		end
+	end
+end)
+
+local noclipEnabled = false
+RunService.Stepped:Connect(function()
+	if noclipEnabled then
+		local char = LocalPlayer.Character
+		if char then
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then part.CanCollide = false end
+			end
+		end
+	end
+end)
+Tab1:AddToggle({ "noclip", false, Callback = function(state) noclipEnabled = state end })
+
+local spinSpeed = 20
+local spinBV = nil
+Tab1:AddSlider({ "سرعة الدوران", 1, 100, nil, 20, Callback = function(v)
+	spinSpeed = v
+	if spinBV then spinBV.AngularVelocity = Vector3.new(0, spinSpeed, 0) end
+end })
+Tab1:AddToggle({ "spin", false, Callback = function(state)
+	local char = LocalPlayer.Character
+	if char then
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			if spinBV then spinBV:Destroy(); spinBV = nil end
+			if state then
+				spinBV = Instance.new("BodyAngularVelocity")
+				spinBV.AngularVelocity = Vector3.new(0, spinSpeed, 0)
+				spinBV.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+				spinBV.Parent = hrp
+			end
+		end
+	end
+end })
+
+local TextSave = ""
+Tab1:AddButton({ "خد بالك يسطا السبام بيجيب باند", Callback = noop })
+Tab1:AddTextBox({ "الرساله", "", "اكتب هنا...", Callback = function(Value) TextSave = Value end })
+Tab1:AddToggle({ "ابدا السبام", false, Callback = function(Value)
+	getgenv().Spam = Value
+	if Value then
+		task.spawn(function()
+			while getgenv().Spam do
+				pcall(function()
+					if TextChatService.ChatVersion == Enum.ChatVersion.LegacyChatService then
+						local ev = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+						if ev then ev.SayMessageRequest:FireServer(TextSave, "All") end
+					else
+						local cfg = TextChatService:FindFirstChild("ChatInputBarConfiguration")
+						if cfg and cfg.TargetTextChannel then cfg.TargetTextChannel:SendAsync(TextSave) end
+					end
+				end)
+				task.wait(0.15)
+			end
+		end)
+	end
+end })
+
+local ColorNameTab = Library:MakeTab({ Title = "تلوين اسم الاعب واشياء اخرى" })
+
+ColorNameTab:AddButton({ "اختار لون اسم الاعب او غير اسم الاعب من هنا", Callback = noop })
+
+local rpNameText = ""
+ColorNameTab:AddTextBox({ "حط اسم لاعب rp", "", "اكتب اسم RP هنا", Callback = function(v) rpNameText = v end })
+local rpNameBtn = ColorNameTab:AddButton({ "تفعيل اسم rp", Callback = function()
+	if rpNameText == "" then return end
+	pcall(function()
+		local rpEvent = ReplicatedStorage:FindFirstChild("RE")
+		if rpEvent then
+			rpEvent = rpEvent:FindFirstChild("1RPNam1eTex1t")
+			if rpEvent then rpEvent:FireServer("RolePlayName", rpNameText) end
+		end
+	end)
+end })
+createCountdown(rpNameBtn)
+
+local rpBioText = ""
+ColorNameTab:AddTextBox({ "اسم بايو الاعب", "", "اكتب اسم البايو هنا", Callback = function(v) rpBioText = v end })
+local rpBioBtn = ColorNameTab:AddButton({ "تفعيل اسم البايو", Callback = function()
+	if rpBioText == "" then return end
+	pcall(function()
+		local rpEvent = ReplicatedStorage:FindFirstChild("RE")
+		if rpEvent then
+			rpEvent = rpEvent:FindFirstChild("1RPNam1eTex1t")
+			if rpEvent then rpEvent:FireServer("RolePlayBio", rpBioText) end
+		end
+	end)
+end })
+createCountdown(rpBioBtn)
+
+local signText = ""
+ColorNameTab:AddTextBox({ "اسحب sign واكتب بيها", "", "اكتب النص اللي على اللوحه", Callback = function(v) signText = v end })
+local signBtn = ColorNameTab:AddButton({ "تفعيل sign", Callback = function()
+	if signText == "" then return end
+	local char = LocalPlayer.Character
+	if not char then return end
+	local existingSign = char:FindFirstChild("Sign")
+	if existingSign and existingSign:FindFirstChild("ToolSound") then
+		WriteOnSign(existingSign, signText)
+		return
+	end
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	local signTool = nil
+	if backpack then signTool = backpack:FindFirstChild("Sign") end
+	if not signTool then signTool = char:FindFirstChild("Sign") end
+	if not signTool then
+		pcall(function()
+			local RE = ReplicatedStorage:FindFirstChild("RE")
+			if RE then
+				local b_tool = RE:FindFirstChild("1Too1l")
+				if b_tool then b_tool:InvokeServer("PickingTools", "Sign") end
+			end
+		end)
+		task.wait(1.2)
+		if backpack then signTool = backpack:FindFirstChild("Sign") end
+		if not signTool then signTool = char:FindFirstChild("Sign") end
+	end
+	if not signTool then return end
+	local hum = char:FindFirstChild("Humanoid")
+	if hum and signTool.Parent ~= char then
+		pcall(function() hum:EquipTool(signTool) end)
+	end
+	task.spawn(function()
+		for _ = 1, 30 do
+			local signObj = char:FindFirstChild("Sign")
+			if signObj and signObj:FindFirstChild("ToolSound") then
+				WriteOnSign(signObj, signText)
+				return
+			end
+			task.wait(0.1)
+		end
+	end)
+end })
+createCountdown(signBtn)
+
+local petNameText = ""
+ColorNameTab:AddTextBox({ "اكتب فوق راس الحيوان", "", "اكتب الاسم هنا", Callback = function(v) petNameText = v end })
+local petNameBtn = ColorNameTab:AddButton({ "تفعيل اسم الحيوان", Callback = function()
+	if petNameText == "" then return end
+	local function hasPet()
+		local char = LocalPlayer.Character
+		if not char then return false end
+		for _, c in ipairs(char:GetChildren()) do
+			if c.Name:lower():find("pet") then return true end
+		end
+		return false
+	end
+	if not hasPet() then
+		local re = ReplicatedStorage:FindFirstChild("RE")
+		if re then
+			for _, name in ipairs({"1Pe1t", "1Pet1", "1Pet1s", "1Pets1", "1Pe1ts"}) do
+				local r = re:FindFirstChild(name)
+				if r then
+					pcall(function() r:FireServer("SpawnPet", "BabyMonkey") end)
+					task.wait(0.4)
+					if hasPet() then break end
+				end
+			end
+		end
+	end
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	if remotes then
+		local ev = remotes:FindFirstChild("Pet_SetName")
+		if ev then pcall(function() ev:FireServer(petNameText) end) end
+	end
+end })
+createCountdown(petNameBtn)
+
+local kidNameText = ""
+ColorNameTab:AddTextBox({ "اكتب فوق راس الطفل", "", "اكتب الاسم هنا", Callback = function(v) kidNameText = v end })
+local kidNameBtn = ColorNameTab:AddButton({ "تفعيل اسم الطفل", Callback = function()
+	if kidNameText == "" then return end
+	local function hasKid()
+		local char = LocalPlayer.Character
+		if not char then return false end
+		for _, c in ipairs(char:GetChildren()) do
+			if c.Name == "FollowCharacter" or c.Name:lower():find("kid") or c.Name:lower():find("baby") then
+				return true
+			end
+		end
+		return false
+	end
+	if not hasKid() then
+		pcall(function()
+			ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("SpawnChild", "BabyBoy")
+		end)
+		task.wait(1)
+	end
+	local re = ReplicatedStorage:FindFirstChild("RE")
+	if re then
+		local ev = re:FindFirstChild("1RPNam1eTex1t")
+		if ev then pcall(function() ev:FireServer("RolePlayFollow", kidNameText) end) end
+	end
+end })
+createCountdown(kidNameBtn)
+
+ColorNameTab:AddSlider({ "سرعة تلوين الاسماء ونصوص", 1, 200, nil, 20, Callback = function(v) rainbowSpeed = v end })
+
+local petNameRainbowActive = false
+local petColorNames = {"Royal purple", "Really blue", "Toothpaste", "Lime green", "Really red", "Pink", "Institutional white"}
+ColorNameTab:AddToggle({ "تلوين اسم الحيوان", false, Callback = function(state)
+	petNameRainbowActive = state
+	if not state then return end
+	task.spawn(function()
+		local i = 1
+		while petNameRainbowActive do
+			local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+			if remotes then
+				local ev = remotes:FindFirstChild("Pet_SetNameColor")
+				if ev and petColorNames[i] then
+					pcall(function() ev:FireServer(petColorNames[i]) end)
+				end
+			end
+			i = i + 1
+			if i > #petColorNames then i = 1 end
+			task.wait(1 / rainbowSpeed)
+		end
+	end)
+end })
+
+local kidNameRainbowActive = false
+local function getKidsColors()
+	local gui = LocalPlayer:FindFirstChild("PlayerGui")
+	if not gui then return nil end
+	local handler = gui:FindFirstChild("NoResetGUIHandler")
+	if not handler then return nil end
+	local petsKids = handler:FindFirstChild("PetsKidsMenu")
+	if not petsKids then return nil end
+	local catalog = petsKids:FindFirstChild("Catalog")
+	if not catalog then return nil end
+	local container = catalog:FindFirstChild("Container")
+	if not container then return nil end
+	local sf = container:FindFirstChild("ScrollingFrameKid2")
+	if not sf then return nil end
+	local kframe = sf:FindFirstChild("Frame")
+	if not kframe then return nil end
+	local children = kframe:GetChildren()
+	local colors = {}
+	local function addColor(obj)
+		if obj then
+			local ok, color = pcall(function() return obj.Color end)
+			if ok and color then table.insert(colors, color) end
+		end
+	end
+	addColor(children[2]); addColor(children[3]); addColor(children[4]); addColor(children[7])
+	addColor(children[5]); addColor(children[6]); addColor(kframe:FindFirstChild("FollowColor"))
+	return colors
+end
+ColorNameTab:AddToggle({ "تلوين اسم الطفل", false, Callback = function(state)
+	kidNameRainbowActive = state
+	if not state then return end
+	task.spawn(function()
+		local colors = getKidsColors()
+		if not colors or #colors == 0 then
+			kidNameRainbowActive = false
+			return
+		end
+		local i = 1
+		while kidNameRainbowActive do
+			local re = ReplicatedStorage:FindFirstChild("RE")
+			if re then
+				local ev = re:FindFirstChild("1RPNam1eColo1r")
+				if ev and colors[i] then
+					pcall(function() ev:FireServer("PickingRPFollowColor", colors[i]) end)
+				end
+			end
+			i = i + 1
+			if i > #colors then i = 1 end
+			task.wait(1 / rainbowSpeed)
+		end
+	end)
+end })
+
+local signRainbowActive = false
+local function getLocalSignForRainbow()
+	local char = LocalPlayer.Character
+	if char then
+		local sign = char:FindFirstChild("Sign")
+		if sign then return sign end
+	end
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if backpack then return backpack:FindFirstChild("Sign") end
+	return nil
+end
+local function getSignFrame()
+	local gui = LocalPlayer:FindFirstChild("PlayerGui")
+	if gui then
+		local gunGui = gui:FindFirstChild("GunGUI")
+		if gunGui then
+			local sg = gunGui:FindFirstChild("SignGui")
+			if sg then
+				local a = sg:FindFirstChild("A")
+				if a then
+					local b = a:FindFirstChild("B")
+					if b then
+						local c = b:FindFirstChild("C")
+						if c then return c:FindFirstChild("Frame") end
+					end
+				end
+			end
+		end
+	end
+	local sign = getLocalSignForRainbow()
+	if sign then
+		local localTool = sign:FindFirstChild("LocalTool")
+		if localTool then
+			local gunGui = localTool:FindFirstChild("GunGUI")
+			if gunGui then
+				local sg = gunGui:FindFirstChild("SignGui")
+				if sg then
+					local a = sg:FindFirstChild("A")
+					if a then
+						local b = a:FindFirstChild("B")
+						if b then
+							local c = b:FindFirstChild("C")
+							if c then return c:FindFirstChild("Frame") end
+						end
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+local function getSignRainbowColors()
+	local frame = getSignFrame()
+	if not frame then return nil end
+	local children = frame:GetChildren()
+	local colors = {}
+	local function addColor(obj)
+		if obj then
+			local ok, color = pcall(function() return obj.Color end)
+			if ok and color then table.insert(colors, color) end
+		end
+	end
+	addColor(children[5]); addColor(children[4]); addColor(children[2])
+	addColor(frame:FindFirstChild("Colors"))
+	addColor(children[10]); addColor(children[9]); addColor(children[8])
+	addColor(children[7]); addColor(children[6]); addColor(children[3])
+	return colors
+end
+ColorNameTab:AddToggle({ "تلوين نص اللوحه", false, Callback = function(state)
+	signRainbowActive = state
+	if not state then return end
+	task.spawn(function()
+		local colors = getSignRainbowColors()
+		if not colors or #colors == 0 then
+			signRainbowActive = false
+			return
+		end
+		local i = 1
+		while signRainbowActive do
+			local sign = getLocalSignForRainbow()
+			if sign then
+				local remote = sign:FindFirstChild("ToolSound")
+				if remote and colors[i] then
+					pcall(function() remote:FireServer("Sign", "SignColor", colors[i]) end)
+				end
+			end
+			i = i + 1
+			if i > #colors then i = 1 end
+			task.wait(1 / rainbowSpeed)
+		end
+	end)
+end })
+
+local colorsList = {
+	{"الوان زينكس", Color3.fromRGB(0,0,0), Color3.fromRGB(255,255,255), Color3.fromRGB(255,0,0)},
+	{"اسود و ابيض", Color3.fromRGB(0,0,0), Color3.fromRGB(255,255,255)},
+	{"اسود و احمر", Color3.fromRGB(0,0,0), Color3.fromRGB(255,0,0)},
+	{"اسود و ازرق", Color3.fromRGB(0,0,0), Color3.fromRGB(0,0,255)},
+	{"اسود و اخضر", Color3.fromRGB(0,0,0), Color3.fromRGB(0,255,0)},
+	{"اسود و اصفر", Color3.fromRGB(0,0,0), Color3.fromRGB(255,255,0)},
+	{"اسود و بنفسجي", Color3.fromRGB(0,0,0), Color3.fromRGB(128,0,128)},
+	{"اسود و وردي", Color3.fromRGB(0,0,0), Color3.fromRGB(255,105,180)},
+	{"اسود و برتقالي", Color3.fromRGB(0,0,0), Color3.fromRGB(255,165,0)},
+	{"اسود و ذهبي", Color3.fromRGB(0,0,0), Color3.fromRGB(255,215,0)},
+	{"اسود و سماوي", Color3.fromRGB(0,0,0), Color3.fromRGB(0,255,255)},
+	{"ابيض و احمر", Color3.fromRGB(255,255,255), Color3.fromRGB(255,0,0)},
+	{"ابيض و ازرق", Color3.fromRGB(255,255,255), Color3.fromRGB(0,0,255)},
+	{"ابيض و اخضر", Color3.fromRGB(255,255,255), Color3.fromRGB(0,255,0)},
+	{"ابيض و اسود", Color3.fromRGB(255,255,255), Color3.fromRGB(0,0,0)},
+	{"ابيض و بنفسجي", Color3.fromRGB(255,255,255), Color3.fromRGB(128,0,128)},
+	{"ابيض و وردي", Color3.fromRGB(255,255,255), Color3.fromRGB(255,105,180)},
+	{"ابيض و ذهبي", Color3.fromRGB(255,255,255), Color3.fromRGB(255,215,0)},
+	{"احمر و ازرق", Color3.fromRGB(255,0,0), Color3.fromRGB(0,0,255)},
+	{"احمر و اخضر", Color3.fromRGB(255,0,0), Color3.fromRGB(0,255,0)},
+	{"احمر و اصفر", Color3.fromRGB(255,0,0), Color3.fromRGB(255,255,0)},
+	{"احمر و بنفسجي", Color3.fromRGB(255,0,0), Color3.fromRGB(128,0,128)},
+	{"احمر و وردي", Color3.fromRGB(255,0,0), Color3.fromRGB(255,105,180)},
+	{"ازرق و اخضر", Color3.fromRGB(0,0,255), Color3.fromRGB(0,255,0)},
+	{"ازرق و اصفر", Color3.fromRGB(0,0,255), Color3.fromRGB(255,255,0)},
+	{"ازرق و بنفسجي", Color3.fromRGB(0,0,255), Color3.fromRGB(128,0,128)},
+	{"اخضر و اصفر", Color3.fromRGB(0,255,0), Color3.fromRGB(255,255,0)},
+	{"اخضر و ازرق", Color3.fromRGB(0,255,0), Color3.fromRGB(0,0,255)},
+	{"اخضر و بنفسجي", Color3.fromRGB(0,255,0), Color3.fromRGB(128,0,128)},
+	{"اصفر و برتقالي", Color3.fromRGB(255,255,0), Color3.fromRGB(255,165,0)},
+	{"اصفر و احمر", Color3.fromRGB(255,255,0), Color3.fromRGB(255,0,0)},
+	{"بنفسجي و وردي", Color3.fromRGB(128,0,128), Color3.fromRGB(255,105,180)},
+	{"بنفسجي و ازرق", Color3.fromRGB(128,0,128), Color3.fromRGB(0,0,255)},
+	{"بنفسجي و ذهبي", Color3.fromRGB(128,0,128), Color3.fromRGB(255,215,0)},
+	{"وردي و ابيض", Color3.fromRGB(255,105,180), Color3.fromRGB(255,255,255)},
+	{"وردي و احمر", Color3.fromRGB(255,105,180), Color3.fromRGB(255,0,0)},
+	{"برتقالي و اصفر", Color3.fromRGB(255,165,0), Color3.fromRGB(255,255,0)},
+	{"برتقالي و احمر", Color3.fromRGB(255,165,0), Color3.fromRGB(255,0,0)},
+	{"ذهبي و اسود", Color3.fromRGB(255,215,0), Color3.fromRGB(0,0,0)},
+	{"ذهبي و احمر", Color3.fromRGB(255,215,0), Color3.fromRGB(255,0,0)},
+	{"سماوي و ازرق", Color3.fromRGB(0,255,255), Color3.fromRGB(0,0,255)},
+	{"سماوي و ابيض", Color3.fromRGB(0,255,255), Color3.fromRGB(255,255,255)},
+	{"سماوي و اخضر", Color3.fromRGB(0,255,255), Color3.fromRGB(0,255,0)},
+	{"فضي و اسود", Color3.fromRGB(192,192,192), Color3.fromRGB(0,0,0)},
+	{"فضي و ازرق", Color3.fromRGB(192,192,192), Color3.fromRGB(0,0,255)},
+	{"فضي و احمر", Color3.fromRGB(192,192,192), Color3.fromRGB(255,0,0)},
+	{"رصاصي و ابيض", Color3.fromRGB(128,128,128), Color3.fromRGB(255,255,255)},
+	{"رصاصي و اسود", Color3.fromRGB(128,128,128), Color3.fromRGB(0,0,0)},
+	{"رصاصي و احمر", Color3.fromRGB(128,128,128), Color3.fromRGB(255,0,0)},
+	{"بني و ذهبي", Color3.fromRGB(139,69,19), Color3.fromRGB(255,215,0)},
+	{"بني و اخضر", Color3.fromRGB(139,69,19), Color3.fromRGB(0,255,0)},
+	{"كحلي و ابيض", Color3.fromRGB(0,0,128), Color3.fromRGB(255,255,255)},
+	{"كحلي و ذهبي", Color3.fromRGB(0,0,128), Color3.fromRGB(255,215,0)},
+	{"زيتي و اسود", Color3.fromRGB(128,128,0), Color3.fromRGB(0,0,0)},
+	{"مارون و ذهبي", Color3.fromRGB(128,0,0), Color3.fromRGB(255,215,0)},
+	{"فيروزي و ابيض", Color3.fromRGB(64,224,208), Color3.fromRGB(255,255,255)}
+}
+local activeColorToggle = nil
+for idx, colorData in ipairs(colorsList) do
+	local name = colorData[1]
+	local colors = {}
+	for i = 2, #colorData do table.insert(colors, colorData[i]) end
+	local isDefault = (name == "اسود و ابيض")
+	local thisToggle
+	thisToggle = ColorNameTab:AddToggle({ name, isDefault, Callback = function(state)
+		if state then
+			if activeColorToggle and activeColorToggle ~= thisToggle then activeColorToggle.SetToggle(false) end
+			activeColorToggle = thisToggle
+			_G.customColors = colors
+			_G.ZainCustomColors = true
+		else
+			if activeColorToggle == thisToggle then
+				activeColorToggle = nil
+				_G.ZainCustomColors = false
+			end
+		end
+	end })
+	if isDefault then
+		activeColorToggle = thisToggle
+		_G.customColors = colors
+		_G.ZainCustomColors = true
+	end
+end
+
+local TabCamera = Library:MakeTab({ Title = "كاميرا الاعب" })
+local camera = Workspace.CurrentCamera
+local camState = {
+	fovEnabled = false, fovOffset = 10, orbitSpeed = 5, orbitConn = nil, orbitAngle = 0,
+	overheadConn = nil, origMaxZoom = Player.CameraMaxZoomDistance, origMinZoom = Player.CameraMinZoomDistance,
+	origAmbient = Lighting.Ambient, origOutdoorAmbient = Lighting.OutdoorAmbient, origBrightness = Lighting.Brightness,
+	shoulderConn = nil, selfieConn = nil, nightEffect = nil, cctvEffect = nil, cctvLabel = nil,
+	wormConn = nil, trackConn = nil, fixedPos = nil, vintageEffect = nil, backConn = nil, droneConn = nil,
+	upsideBound = false, grayEffect = nil, pulseConn = nil, rollAngle = 0, rollBound = false,
+	strobeFrame = nil, strobeConn = nil, origFogEnd = nil, origFogStart = nil, origFogColor = nil
+}
+TabCamera:AddSlider({ "بعد مجال الرويا", -100, 100, nil, 10, Callback = function(val)
+	camState.fovOffset = val
+	if camState.fovEnabled then camera.FieldOfView = math.clamp(70 + val, 1, 120) end
+end })
+TabCamera:AddToggle({ "فعل بعد مجال الرويا", false, Callback = function(enabled)
+	camState.fovEnabled = enabled
+	camera.FieldOfView = enabled and math.clamp(70 + camState.fovOffset, 1, 120) or 70
+end })
+TabCamera:AddSlider({ "سرعة دوران الكاميرا", 0, 100, nil, 5, Callback = function(val) camState.orbitSpeed = val end })
+TabCamera:AddToggle({ "فعل دوران الكاميرا دايره", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.orbitConn = RunService.RenderStepped:Connect(function(dt)
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			camState.orbitAngle = camState.orbitAngle + (dt * (camState.orbitSpeed * 0.16))
+			local radius = 12
+			local camX = hrp.Position.X + math.cos(camState.orbitAngle) * radius
+			local camZ = hrp.Position.Z + math.sin(camState.orbitAngle) * radius
+			camera.CFrame = CFrame.lookAt(Vector3.new(camX, hrp.Position.Y + 3, camZ), hrp.Position + Vector3.new(0, 1.5, 0))
+		end)
+	else
+		if camState.orbitConn then camState.orbitConn:Disconnect() camState.orbitConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "شيل حد رجوع الكاميرا", false, Callback = function(enabled)
+	if enabled then
+		Player.CameraMaxZoomDistance = 1e9
+		Player.CameraMinZoomDistance = 0.1
+	else
+		Player.CameraMaxZoomDistance = camState.origMaxZoom
+		Player.CameraMinZoomDistance = camState.origMinZoom
+	end
+end })
+TabCamera:AddToggle({ "الكاميرا فوق اللاعب", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.overheadConn = RunService.RenderStepped:Connect(function()
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			camera.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 55, 0)) * CFrame.Angles(math.rad(-89.9), 0, 0)
+		end)
+	else
+		if camState.overheadConn then camState.overheadConn:Disconnect() camState.overheadConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "اضاءه كامله", false, Callback = function(enabled)
+	if enabled then
+		Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+		Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+		Lighting.Brightness = 2
+	else
+		Lighting.Ambient = camState.origAmbient
+		Lighting.OutdoorAmbient = camState.origOutdoorAmbient
+		Lighting.Brightness = camState.origBrightness
+	end
+end })
+TabCamera:AddToggle({ "جمد مكان الكاميرا", false, Callback = function(enabled)
+	if enabled then
+		local cur = camera.CFrame
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CFrame = cur
+	else
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "الكاميرا على الكتف", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.shoulderConn = RunService.RenderStepped:Connect(function()
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			local offset = hrp.CFrame * CFrame.new(2.5, 1.8, 4)
+			local look = hrp.CFrame * CFrame.new(1, 1, -30)
+			camera.CFrame = CFrame.lookAt(offset.Position, look.Position)
+		end)
+	else
+		if camState.shoulderConn then camState.shoulderConn:Disconnect() camState.shoulderConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "سيلفي من بعيد", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.selfieConn = RunService.RenderStepped:Connect(function()
+			local char = Player.Character
+			if not char or not char:FindFirstChild("Head") then return end
+			camera.CFrame = char.Head.CFrame * CFrame.new(0, 0.5, -10.5) * CFrame.Angles(0, math.pi, 0)
+		end)
+	else
+		if camState.selfieConn then camState.selfieConn:Disconnect() camState.selfieConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "الرويا الليليه", false, Callback = function(enabled)
+	if enabled then
+		camState.nightEffect = Instance.new("ColorCorrectionEffect", Lighting)
+		camState.nightEffect.TintColor = Color3.fromRGB(100, 255, 100)
+		camState.nightEffect.Brightness = 0.2
+		camState.nightEffect.Contrast = 0.4
+	else
+		if camState.nightEffect then camState.nightEffect:Destroy() camState.nightEffect = nil end
+	end
+end })
+TabCamera:AddToggle({ "كاميرا مراقبه", false, Callback = function(enabled)
+	if enabled then
+		camState.cctvEffect = Instance.new("ColorCorrectionEffect", Lighting)
+		camState.cctvEffect.Saturation = -1
+		camState.cctvEffect.Contrast = 0.3
+		camState.cctvLabel = Instance.new("TextLabel", Library.Gui)
+		camState.cctvLabel.Size = UDim2.new(0, 200, 0, 30)
+		camState.cctvLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
+		camState.cctvLabel.BackgroundTransparency = 1
+		camState.cctvLabel.Text = "كاميرا مراقبه - بطاريه 84"
+		camState.cctvLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+		camState.cctvLabel.TextSize = 14
+		camState.cctvLabel.ZIndex = 6
+	else
+		if camState.cctvEffect then camState.cctvEffect:Destroy() camState.cctvEffect = nil end
+		if camState.cctvLabel then camState.cctvLabel:Destroy() camState.cctvLabel = nil end
+	end
+end })
+TabCamera:AddToggle({ "كاميرا دايره سريعه", false, Callback = function(enabled)
+	if enabled then
+		camera.CameraType = Enum.CameraType.Scriptable
+		camState.orbitConn = RunService.RenderStepped:Connect(function(dt)
+			local char = Player.Character
+			if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local hrp = char.HumanoidRootPart
+			camState.orbitAngle = camState.orbitAngle + dt * 5
+			camera.CFrame = CFrame.lookAt(hrp.Position + Vector3.new(math.cos(camState.orbitAngle) * 10, 5, math.sin(camState.orbitAngle) * 10), hrp.Position)
+		end)
+	else
+		if camState.orbitConn then camState.orbitConn:Disconnect() camState.orbitConn = nil end
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end })
+TabCamera:AddToggle({ "فلتر ابيض واسود", false, Callback = function(enabled)
+	if enabled then
+		camState.grayEffect = Instance.new("ColorCorrectionEffect", Lighting)
+		camState.grayEffect.Saturation = -1
+		camState.grayEffect.Contrast = 0.15
+	else
+		if camState.grayEffect then camState.grayEffect:Destroy() camState.grayEffect = nil end
+	end
+end })
+
+local TabSund = Library:MakeTab({ Title = "اغاني مجانيه" })
+TabSund:AddButton({ "اغاني مايبيتلها جيم باس وكل الناس تسمعها", Callback = noop })
+local musicList = {
+	["ضحكه مال سوكونا"] = "116395665143666", ["غوجو توسيع النطاق"] = "139787675170861",
+	["صوت فايت مزعج شوي"] = "132639404905710", ["صوت بنت انمي مشكوك فجد خاله عمتو"] = "109779146034241",
+	["صوت بنت انمي تاني"] = "102993326623397", ["صوت اسد"] = "9126101636",
+	["صوت بنت انمي 3"] = "103430674469051", ["صوت انمي مزعج"] = "97551835622379",
+	["صوت سلاح فري فاير"] = "6909650402", ["جراني"] = "1591860354",
+	["توجي"] = "132509237694639", ["اوريتشيمارو"] = "135109036831389",
+	["ضحكه سونيك"] = "7337298420", ["ازعاج"] = "146563959",
+	["اغنيه فينوم"] = "8086734311", ["صوت فينوم"] = "126497226413207",
+	["صوت رعد"] = "6994934244", ["جوجوتسو كايسن"] = "18985328962",
+	["صوت ازعاج 2"] = "94692079812822", ["صوت ازعاج 3"] = "89442290120460",
+	["واو"] = "8153869016", ["ياري ياري - yari yari"] = "112204790015249",
+	["يوو - Yo"] = "85377945204620", ["هيلو - hello"] = "72496798518816",
+}
+local musicOptions = {}
+for name, _ in pairs(musicList) do table.insert(musicOptions, name) end
+table.sort(musicOptions)
+local dropdownMusic = musicList[musicOptions[1]] or ""
+local selectedMusic = dropdownMusic
+local customMusicID = ""
+local soundSpeed, soundVolume, soundRange = 1, 1, 100
+local spamToggle, spamTask = false, nil
+local function isValidSongId(id)
+	if not id then return false end
+	local s = tostring(id):gsub("%s", "")
+	if s == "" then return false end
+	if not s:match("^%d+$") then return false end
+	return true
+end
+local function canPlaySong(id)
+	if not isValidSongId(id) then return false end
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://" .. tostring(id)
+	local ok = pcall(function() ContentProvider:PreloadAsync({sound}) end)
+	local isLoaded = sound.IsLoaded
+	sound:Destroy()
+	return ok and isLoaded
+end
+TabSund:AddDropdown({ Title = "اختار الصوت", Options = musicOptions, Callback = function(selected)
+	dropdownMusic = musicList[selected] or ""
+	if customMusicID == "" then selectedMusic = dropdownMusic end
+end })
+TabSund:AddTextBox({ "كود اغنيه مخصص", "", "اكتب كود الاغنيه (ارقام بس)", Callback = function(v)
+	local s = tostring(v or ""):gsub("%s", "")
+	if s ~= "" and s:match("^%d+$") then
+		customMusicID = s
+		selectedMusic = s
+	else
+		customMusicID = ""
+		selectedMusic = dropdownMusic
+	end
+end })
+TabSund:AddSlider({ "سرعه الصوت", 5, 20, nil, 10, Callback = function(v) soundSpeed = v / 10 end })
+TabSund:AddSlider({ "قوه الصوت", 0, 10, nil, 1, Callback = function(v) soundVolume = v end })
+TabSund:AddSlider({ "مدى الصوت", 10, 300, nil, 100, Callback = function(v) soundRange = v end })
+local function playOnce()
+	if selectedMusic == "" then return end
+	if not isValidSongId(selectedMusic) then return end
+	if not canPlaySong(selectedMusic) then return end
+	local audioID = tostring(selectedMusic)
+	pcall(function()
+		local GunSoundEvent = ReplicatedStorage:FindFirstChild("1Gu1nSound1s", true)
+		if GunSoundEvent then GunSoundEvent:FireServer(workspace, audioID, 1) end
+	end)
+	task.wait(0.2)
+	local GuinRemote
+	pcall(function()
+		local RE = ReplicatedStorage:FindFirstChild("RE")
+		if RE then GuinRemote = RE:FindFirstChild("1Gu1n") end
+	end)
+	if not GuinRemote then return end
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			local hrp = char.HumanoidRootPart
+			task.spawn(function()
+				pcall(function()
+					local Sound = Instance.new("Sound")
+					Sound.SoundId = "rbxassetid://" .. audioID
+					Sound.Volume = soundVolume
+					Sound.PlaybackSpeed = soundSpeed
+					Sound.RollOffMaxDistance = soundRange
+					Sound.Parent = hrp
+					Sound:Play()
+					Sound.Ended:Connect(function() Sound:Destroy() end)
+					task.delay(10, function() if Sound then Sound:Destroy() end end)
+				end)
+			end)
+			task.spawn(function()
+				pcall(function()
+					GuinRemote:FireServer(table.unpack({
+						[1]=hrp,[2]=hrp,[3]=Vector3.new(0,-1,0),[4]=Vector3.new(0,0,0),
+						[5]=hrp,[6]=hrp,[7]=audioID,[8]=audioID,[9]={[1]=true},
+						[10]={25,Vector3.new(0.25,0.25,soundRange),BrickColor.new("Bright yellow"),0.25,Enum.Material.SmoothPlastic,0.25},
+						[11]=true,[12]=false
+					}))
+				end)
+			end)
+		end
+	end
+end
+TabSund:AddButton({ "شغلها مره وحده", Callback = playOnce })
+TabSund:AddToggle({ "سبام تشغيل", false, Callback = function(v)
+	spamToggle = v
+	if spamTask then task.cancel(spamTask); spamTask = nil end
+	if v then
+		spamTask = task.spawn(function()
+			while spamToggle do playOnce() task.wait(1) end
+		end)
+	end
+end })
+
+local QualityTab = Library:MakeTab({ Title = "الجوده" })
+QualityTab:AddButton({ "تحسين الجوده (Shaders)", Callback = noop })
+QualityTab:AddButton({ "شغل الشيدر (Shaders)", Callback = function()
+	pcall(function()
+		loadstring(game:HttpGet('https://raw.githubusercontent.com/realgengar/scripts/refs/heads/main/free'), true)()
+	end)
+end })
+local function Clean()
+	pcall(function()
+		for _, v in pairs(Lighting:GetChildren()) do
+			if v:IsA("PostEffect") or v:IsA("Sky") or v:IsA("Atmosphere") then v:Destroy() end
+		end
+		Lighting.Brightness = 2
+		Lighting.ClockTime = 14
+		Lighting.FogEnd = 100000
+		Lighting.ExposureCompensation = 0
+		Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+		Lighting.GlobalShadows = true
+	end)
+end
+local function SetMat(mat)
+	pcall(function()
+		for _, obj in pairs(workspace:GetDescendants()) do
+			if obj:IsA("BasePart") and obj.Transparency < 1 then obj.Material = mat end
+		end
+	end)
+end
+local function FX(class, props)
+	local inst = Instance.new(class)
+	for i, v in pairs(props) do inst[i] = v end
+	inst.Parent = Lighting
+	return inst
+end
+QualityTab:AddButton({ "تحسين الظلال والاشعه", Callback = noop })
+local selShadow = nil
+QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"رجع الظلال طبيعيه", "اشعه الهيه", "شمس دهبيه", "ظلال قويه", "من غير ظلال (رفع FPS)", "توهج ناعم", "ضوء سماوي", "ظلال غامقه", "ضوء حجمي", "وميض العدسه", "اشعه الغروب", "تعريض ضوئي عالي"}, Callback = function(v) selShadow = v end })
+QualityTab:AddButton({ "شغل التاثير", Callback = function()
+	pcall(function()
+		if selShadow == "رجع الظلال طبيعيه" then
+			for _, v in pairs(Lighting:GetChildren()) do if v:IsA("SunRaysEffect") or v:IsA("BloomEffect") then v:Destroy() end end
+			Lighting.GlobalShadows = true
+		elseif selShadow == "اشعه الهيه" then FX("SunRaysEffect", {Intensity=0.2, Spread=1})
+		elseif selShadow == "شمس دهبيه" then FX("SunRaysEffect", {Intensity=0.15}) FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(255,230,150)})
+		elseif selShadow == "ظلال قويه" then Lighting.GlobalShadows = true Lighting.Brightness = 3
+		elseif selShadow == "من غير ظلال (رفع FPS)" then Lighting.GlobalShadows = false
+		elseif selShadow == "توهج ناعم" then FX("BloomEffect", {Intensity=1, Size=20, Threshold=0.5})
+		elseif selShadow == "ضوء سماوي" then FX("SunRaysEffect", {Intensity=0.4}) FX("BloomEffect", {Intensity=0.8})
+		elseif selShadow == "ظلال غامقه" then Lighting.OutdoorAmbient = Color3.new(0,0,0)
+		elseif selShadow == "ضوء حجمي" then FX("Atmosphere", {Density=0.3, Glare=0.5, Haze=1})
+		elseif selShadow == "وميض العدسه" then FX("SunRaysEffect", {Intensity=0.1}) FX("BloomEffect", {Intensity=2, Threshold=0.9})
+		elseif selShadow == "اشعه الغروب" then Lighting.ClockTime = 17.8 FX("SunRaysEffect", {Intensity=0.25})
+		elseif selShadow == "تعريض ضوئي عالي" then Lighting.ExposureCompensation = 1.5 end
+	end)
+end })
+QualityTab:AddButton({ "اضاءه RTX", Callback = noop })
+local selRTX = nil
+QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"شيل كل التاثيرات", "RTX متقدم", "الوان زاهيه", "حلم ناعم", "صباح بارد", "الساعه الدهبيه", "سينمائي 4K", "حراره الصيف", "ظلال عميقه", "ليل مضيء", "سما ورديه", "تشبع الوان قوي"}, Callback = function(v) selRTX = v end })
+QualityTab:AddButton({ "شغل التاثير", Callback = function()
+	pcall(function()
+		if selRTX == "شيل كل التاثيرات" then Clean()
+		elseif selRTX == "RTX متقدم" then Clean() FX("ColorCorrectionEffect", {Saturation=0.2, Contrast=0.2}) FX("BloomEffect", {Intensity=0.5}) FX("SunRaysEffect", {Intensity=0.1})
+		elseif selRTX == "الوان زاهيه" then Clean() FX("ColorCorrectionEffect", {Saturation=1.5})
+		elseif selRTX == "حلم ناعم" then Clean() FX("BloomEffect", {Intensity=1, Size=50})
+		elseif selRTX == "صباح بارد" then Clean() Lighting.ClockTime=7 FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(200,230,255)})
+		elseif selRTX == "الساعه الدهبيه" then Clean() Lighting.ClockTime=17.5 FX("ColorCorrectionEffect", {Saturation=0.5})
+		elseif selRTX == "سينمائي 4K" then Clean() FX("ColorCorrectionEffect", {Contrast=0.4, Saturation=0.1})
+		elseif selRTX == "حراره الصيف" then Clean() Lighting.Brightness=4 FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(255,240,200)})
+		elseif selRTX == "ظلال عميقه" then Clean() Lighting.GlobalShadows=true FX("ColorCorrectionEffect", {Contrast=0.6})
+		elseif selRTX == "ليل مضيء" then Clean() Lighting.ClockTime=0 Lighting.Brightness=5
+		elseif selRTX == "سما ورديه" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(255,200,255)})
+		elseif selRTX == "تشبع الوان قوي" then Clean() FX("ColorCorrectionEffect", {Saturation=3}) end
+	end)
+end })
+QualityTab:AddButton({ "تاثيرات العالم", Callback = noop })
+local selApoc = nil
+QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"رجع طبيعي", "شتا نووي", "عاصفه رمليه", "ضباب سام", "Silent Hill", "نيران الجحيم", "عالم النباتات", "عالم الصدا", "اشعاع ازرق", "سقوط الرماد", "جفاف شديد", "نهايه العالم"}, Callback = function(v) selApoc = v end })
+QualityTab:AddButton({ "شغل التاثير", Callback = function()
+	pcall(function()
+		if selApoc == "رجع طبيعي" then Clean()
+		elseif selApoc == "شتا نووي" then Clean() SetMat(Enum.Material.Concrete) Lighting.FogEnd=400 FX("ColorCorrectionEffect", {Saturation=-0.8})
+		elseif selApoc == "عاصفه رمليه" then Clean() SetMat(Enum.Material.Sand) Lighting.FogEnd=200 Lighting.FogColor=Color3.fromRGB(180,140,80)
+		elseif selApoc == "ضباب سام" then Clean() Lighting.FogEnd=300 Lighting.FogColor=Color3.fromRGB(100,255,100)
+		elseif selApoc == "Silent Hill" then Clean() Lighting.FogEnd=150 FX("ColorCorrectionEffect", {Saturation=-1})
+		elseif selApoc == "نيران الجحيم" then Clean() Lighting.ClockTime=18 FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(255,50,50)})
+		elseif selApoc == "عالم النباتات" then Clean() SetMat(Enum.Material.Grass) FX("ColorCorrectionEffect", {Saturation=1})
+		elseif selApoc == "عالم الصدا" then Clean() SetMat(Enum.Material.CorrodedMetal)
+		elseif selApoc == "اشعاع ازرق" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(0,255,255), Brightness=0.2})
+		elseif selApoc == "سقوط الرماد" then Clean() Lighting.FogEnd=500 Lighting.FogColor=Color3.fromRGB(50,50,50)
+		elseif selApoc == "جفاف شديد" then Clean() SetMat(Enum.Material.Slate) FX("ColorCorrectionEffect", {Saturation=-0.2, TintColor=Color3.fromRGB(255,220,180)})
+		elseif selApoc == "نهايه العالم" then Clean() Lighting.ClockTime=20 FX("ColorCorrectionEffect", {Contrast=0.8, Saturation=0.5}) end
+	end)
+end })
+QualityTab:AddButton({ "تغير الطقس", Callback = noop })
+local selWeather = nil
+QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"صفي السما", "مطر غزير", "عاصفه تلجيه", "عاصفه رعديه", "يوم غايم", "ضباب خفيف", "مطر نص الليل", "اجواء الخريف", "ازدهار الربيع", "موجه حر", "سما الاعصار", "كسوف الشمس"}, Callback = function(v) selWeather = v end })
+QualityTab:AddButton({ "شغل التاثير", Callback = function()
+	pcall(function()
+		if selWeather == "صفي السما" then Clean()
+		elseif selWeather == "مطر غزير" then Clean() FX("BlurEffect", {Size=5}) Lighting.FogEnd=500
+		elseif selWeather == "عاصفه تلجيه" then Clean() SetMat(Enum.Material.Snow) Lighting.FogEnd=200
+		elseif selWeather == "عاصفه رعديه" then Clean() Lighting.Brightness=0.3
+			task.spawn(function() while task.wait(5) do Lighting.Brightness=10 task.wait(0.1) Lighting.Brightness=0.3 end end)
+		elseif selWeather == "يوم غايم" then Clean() Lighting.Brightness=1 FX("ColorCorrectionEffect", {Contrast=0.1})
+		elseif selWeather == "ضباب خفيف" then Clean() Lighting.FogEnd=1000 Lighting.FogColor=Color3.fromRGB(200,200,200)
+		elseif selWeather == "مطر نص الليل" then Clean() Lighting.ClockTime=0 FX("BlurEffect", {Size=2})
+		elseif selWeather == "اجواء الخريف" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(255,150,50)})
+		elseif selWeather == "ازدهار الربيع" then Clean() FX("ColorCorrectionEffect", {Saturation=0.4, TintColor=Color3.fromRGB(255,255,200)})
+		elseif selWeather == "موجه حر" then Clean() FX("ColorCorrectionEffect", {Brightness=0.1, Contrast=0.2})
+		elseif selWeather == "سما الاعصار" then Clean() Lighting.FogColor=Color3.fromRGB(70,70,80) Lighting.FogEnd=600
+		elseif selWeather == "كسوف الشمس" then Clean() Lighting.ClockTime=14 Lighting.Brightness=0.1 Lighting.OutdoorAmbient=Color3.new(0,0,0) end
+	end)
+end })
+QualityTab:AddButton({ "تاثيرات جرافكس", Callback = noop })
+local selClassic = nil
+QualityTab:AddDropdown({ Title = "اختار التاثير", Options = {"وقف التاثيرات", "VHS 1980", "GameBoy", "Matrix", "ابيض واسود", "ضبابيه سكران", "رويا ليليه", "شكل 8-Bit", "الوان معكوسه", "تحت الماء", "صوره قديمه", "ضبابيه بنفسجيه"}, Callback = function(v) selClassic = v end })
+QualityTab:AddButton({ "شغل التاثير", Callback = function()
+	pcall(function()
+		if selClassic == "وقف التاثيرات" then Clean()
+		elseif selClassic == "VHS 1980" then Clean() FX("BlurEffect", {Size=2}) FX("ColorCorrectionEffect", {Contrast=0.3, Saturation=-0.2})
+		elseif selClassic == "GameBoy" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(155,188,15), Saturation=-1, Contrast=2})
+		elseif selClassic == "Matrix" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(0,255,0), Contrast=0.5})
+		elseif selClassic == "ابيض واسود" then Clean() FX("ColorCorrectionEffect", {Saturation=-1, Contrast=0.2})
+		elseif selClassic == "ضبابيه سكران" then
+			local b = FX("BlurEffect", {Size=0})
+			task.spawn(function()
+				while b and b.Parent do
+					for i=0,10 do if not b or not b.Parent then break end b.Size=i task.wait(0.05) end
+					for i=10,0,-1 do if not b or not b.Parent then break end b.Size=i task.wait(0.05) end
+				end
+			end)
+		elseif selClassic == "رويا ليليه" then Clean() Lighting.Brightness=4 FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(0,255,0)})
+		elseif selClassic == "شكل 8-Bit" then Clean() FX("ColorCorrectionEffect", {Contrast=0.8, Saturation=0.5})
+		elseif selClassic == "الوان معكوسه" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(0,0,0), Brightness=1})
+		elseif selClassic == "تحت الماء" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(0,100,255)}) FX("BlurEffect", {Size=4})
+		elseif selClassic == "صوره قديمه" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(112,66,20), Saturation=-0.5})
+		elseif selClassic == "ضبابيه بنفسجيه" then Clean() FX("ColorCorrectionEffect", {TintColor=Color3.fromRGB(150,0,255), Saturation=0.5}) end
+	end)
+end })
+
+local HouseTab = Library:MakeTab({ Title = "بيت الاعب" })
+local SignHack, HouseRGB, HouseTextRGB, BellSpam, PoolSpam, CurtainsSpam, GarageSpam, BabySpam, LockSpam, AutoDelete = false, false, false, false, false, false, false, false, false, false
+local function sendControl(interactionName, reArg)
+	local lot = 11
+	local lots = Workspace:FindFirstChild("001_Lots") or Workspace:FindFirstChild("Lots")
+	if lots then
+		for _, obj in pairs(lots:GetChildren()) do
+			if string.find(string.lower(obj.Name), string.lower(Player.Name)) then
+				lot = tonumber(string.match(obj.Name, "%d+")) or lot
+				break
+			end
+		end
+	end
+	local telemetry = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("TelemetryClientInteraction")
+	if telemetry and interactionName then
+		telemetry:FireServer("houseControls", { interaction = interactionName, houseId = "045_House", lot = lot })
+	end
+	if reArg then
+		local reFolder = ReplicatedStorage:FindFirstChild("RE")
+		if reFolder and reFolder:FindFirstChild("1Player1sHous1e") then
+			reFolder["1Player1sHous1e"]:FireServer(reArg)
+		end
+	end
+end
+local function ringBell()
+	pcall(function()
+		for _, desc in pairs(Workspace:GetDescendants()) do
+			if desc:IsA("ClickDetector") and (string.find(string.lower(desc.Parent.Name), "bell") or string.find(string.lower(desc.Parent.Name), "button")) then
+				local hrp = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+				if hrp and desc.Parent:IsA("BasePart") and (desc.Parent.Position - hrp.Position).Magnitude < 30 then
+					if fireclickdetector then fireclickdetector(desc) else pcall(function() desc:FireClick() end) end
+				end
+			end
+		end
+	end)
+end
+local function getHouseModel()
+	local lots = Workspace:FindFirstChild("001_Lots") or Workspace:FindFirstChild("Lots")
+	if not lots then return nil end
+	local ph = lots:FindFirstChild(Player.Name .. "House")
+	if not ph then return nil end
+	local hp = ph:FindFirstChild("HousePickedByPlayer")
+	if not hp then return nil end
+	return hp:FindFirstChild("HouseModel")
+end
+local function deleteAllProps()
+	pcall(function()
+		local hm = getHouseModel()
+		if hm then
+			local cp = hm:FindFirstChild("Permissions:ClearProps")
+			if cp then cp:InvokeServer() end
+		end
+	end)
+end
+local signWords = { "Zenix script on top", "monster is her", "Its come BACK", "RUN" }
+local signIndex = 1
+HouseTab:AddButton({ "تخريب البيت", Callback = noop })
+HouseTab:AddToggle({ "هاك لوحه البيت", false, Callback = function(v)
+	SignHack = v
+	if v then
+		task.spawn(function()
+			while SignHack do
+				pcall(function()
+					local RE = ReplicatedStorage:FindFirstChild("RE")
+					if RE then
+						local signRemote = RE:FindFirstChild("1RPHous1eEven1t")
+						if signRemote then
+							signRemote:FireServer("BusinessName", signWords[signIndex])
+							signIndex = (signIndex % #signWords) + 1
+						end
+					end
+				end)
+				task.wait(0.3)
+			end
+		end)
+	end
+end })
+HouseTab:AddToggle({ "الوان قوس قزح للبيت", false, Callback = function(v)
+	HouseRGB = v
+	if v then
+		task.spawn(function()
+			while HouseRGB do
+				pcall(function()
+					local remote = ReplicatedStorage:FindFirstChild("RE")
+					if remote and remote:FindFirstChild("1Player1sHous1e") then
+						remote["1Player1sHous1e"]:FireServer("ColorPickHouse", Color3.fromHSV(tick() % 5 / 5, 1, 1))
+					end
+				end)
+				task.wait(0.1)
+			end
+		end)
+	end
+end })
+HouseTab:AddToggle({ "الوان قوس قزح للوحه البيت", false, Callback = function(v)
+	HouseTextRGB = v
+	if v then
+		task.spawn(function()
+			while HouseTextRGB do
+				pcall(function()
+					local remote = ReplicatedStorage:FindFirstChild("RE")
+					if remote and remote:FindFirstChild("1RPHous1eEven1tColo1r") then
+						remote["1RPHous1eEven1tColo1r"]:FireServer("PickingBusinessNameColor", Color3.fromHSV(tick() % 5 / 5, 1, 1))
+					end
+				end)
+				task.wait(0.1)
+			end
+		end)
+	end
+end })
+HouseTab:AddToggle({ "سبام الجرس والباب", false, Callback = function(v)
+	BellSpam = v
+	if v then task.spawn(function() while BellSpam do ringBell() task.wait(0.2) end end) end
+end })
+HouseTab:AddToggle({ "سبام المسبح", false, Callback = function(v)
+	PoolSpam = v
+	if v then task.spawn(function() while PoolSpam do sendControl("HousePoolButton", "PoolOnOff") task.wait(0.2) end end) end
+end })
+HouseTab:AddToggle({ "سبام الستاير", false, Callback = function(v)
+	CurtainsSpam = v
+	if v then task.spawn(function() while CurtainsSpam do sendControl("HouseCurtainsButton", "Curtains") task.wait(0.2) end end) end
+end })
+HouseTab:AddToggle({ "سبام الجراج", false, Callback = function(v)
+	GarageSpam = v
+	if v then task.spawn(function() while GarageSpam do sendControl("HouseGarageButton", "GarageDoor") task.wait(7) end end) end
+end })
+HouseTab:AddToggle({ "سبام ادوات الطفل", false, Callback = function(v)
+	BabySpam = v
+	if v then task.spawn(function() while BabySpam do sendControl("HouseBabyFurnitureButton", "BabyOptionYes") task.wait(0.2) end end) end
+end })
+HouseTab:AddToggle({ "سبام قفل وفتح الابواب", false, Callback = function(v)
+	LockSpam = v
+	if v then task.spawn(function() while LockSpam do sendControl("HouseLockDoorButton", "LockDoors") task.wait(0.2) end end) end
+end })
+HouseTab:AddButton({ "امسح كل اغراض البيت", Callback = function() deleteAllProps() end })
+HouseTab:AddToggle({ "سبام مسح اغراض البيت", false, Callback = function(v)
+	AutoDelete = v
+	if v then task.spawn(function() while AutoDelete do deleteAllProps() task.wait(0.3) end end) end
+end })
+
+local PetTab = Library:MakeTab({ Title = "رحمة حيوانات وتربيه" })
+PetTab:AddButton({ "خذ sign البيضاء", Callback = function() GetWhiteSign() end })
+local petTargetName = ""
+PetTab:AddTextBox({ "اسم الضحية", "", "اكتب اسم الضحية", Callback = function(v) petTargetName = v end })
+local petSignText = ""
+PetTab:AddTextBox({ "النص", "", "اكتب النص هنا", Callback = function(v) petSignText = v end })
+PetTab:AddButton({ "تغيير لوحة الضحية", Callback = function()
+	if petSignText == "" or petTargetName == "" then return end
+	local lower = petTargetName:lower()
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Name:lower():find(lower, 1, true) and #lower >= 2 then
+			local char = p.Character
+			WriteOnSign(char and char:FindFirstChild("Sign"), petSignText)
+		end
+	end
+end })
+PetTab:AddButton({ "تغيير لوحتي أنا", Callback = function()
+	if petSignText == "" then return end
+	local char = LocalPlayer.Character
+	WriteOnSign(char and char:FindFirstChild("Sign"), petSignText)
+end })
+PetTab:AddButton({ "تغيير لوح كل السيرفر", Callback = function()
+	if petSignText == "" then return end
+	for _, p in ipairs(Players:GetPlayers()) do
+		local char = p.Character
+		WriteOnSign(char and char:FindFirstChild("Sign"), petSignText)
+	end
+end })
+
+local petNewName = ""
+PetTab:AddTextBox({ "اسم الحيوان الجديد", "", "اكتب اسم الحيوان", Callback = function(v) petNewName = v end })
+local petChangeBtn = PetTab:AddButton({ "تغيير اسم الحيوان", Callback = function()
+	if petNewName == "" then return end
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	if remotes then
+		local ev = remotes:FindFirstChild("Pet_SetName")
+		if ev then pcall(function() ev:FireServer(petNewName) end) end
+	end
+end })
+createCountdown(petChangeBtn)
+
+local kidNewName = ""
+PetTab:AddTextBox({ "اسم الطفل الجديد", "", "اكتب اسم الطفل", Callback = function(v) kidNewName = v end })
+local kidChangeBtn = PetTab:AddButton({ "تغيير اسم الطفل", Callback = function()
+	if kidNewName == "" then return end
+	local re = ReplicatedStorage:FindFirstChild("RE")
+	if re then
+		local ev = re:FindFirstChild("1RPNam1eTex1t")
+		if ev then pcall(function() ev:FireServer("RolePlayFollow", kidNewName) end) end
+	end
+end })
+createCountdown(kidChangeBtn)
+
+local petTabSignRainbow = false
+PetTab:AddToggle({ "تلوين نص اللوحة رينبو", false, Callback = function(state)
+	petTabSignRainbow = state
+	if not state then return end
+	task.spawn(function()
+		local colors = getSignRainbowColors()
+		if not colors or #colors == 0 then petTabSignRainbow = false; return end
+		local i = 1
+		while petTabSignRainbow do
+			local sign = getLocalSignForRainbow()
+			if sign then
+				local remote = sign:FindFirstChild("ToolSound")
+				if remote and colors[i] then pcall(function() remote:FireServer("Sign", "SignColor", colors[i]) end) end
+			end
+			i = i + 1
+			if i > #colors then i = 1 end
+			task.wait(1 / rainbowSpeed)
+		end
+	end)
+end })
+
+local petTabPetRainbow = false
+PetTab:AddToggle({ "تلوين اسم الحيوان رينبو", false, Callback = function(state)
+	petTabPetRainbow = state
+	if not state then return end
+	task.spawn(function()
+		local i = 1
+		while petTabPetRainbow do
+			local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+			if remotes then
+				local ev = remotes:FindFirstChild("Pet_SetNameColor")
+				if ev and petColorNames[i] then pcall(function() ev:FireServer(petColorNames[i]) end) end
+			end
+			i = i + 1
+			if i > #petColorNames then i = 1 end
+			task.wait(1 / rainbowSpeed)
+		end
+	end)
+end })
+
+local petTabKidRainbow = false
+PetTab:AddToggle({ "تلوين اسماء الاطفال", false, Callback = function(state)
+	petTabKidRainbow = state
+	if not state then return end
+	task.spawn(function()
+		local colors = getKidsColors()
+		if not colors or #colors == 0 then petTabKidRainbow = false; return end
+		local i = 1
+		while petTabKidRainbow do
+			local re = ReplicatedStorage:FindFirstChild("RE")
+			if re then
+				local ev = re:FindFirstChild("1RPNam1eColo1r")
+				if ev and colors[i] then pcall(function() ev:FireServer("PickingRPFollowColor", colors[i]) end) end
+			end
+			i = i + 1
+			if i > #colors then i = 1 end
+			task.wait(1 / rainbowSpeed)
+		end
+	end)
+end })
+
+local ChildTab = Library:MakeTab({ Title = "رحمة الطفل" })
+getgenv().Selec7tedPlayerNOme = nil
+local function GetPlayersList()
+	local list = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then table.insert(list, plr.Name) end
+	end
+	if #list == 0 then return {"مافيش لاعبين"} end
+	return list
+end
+local PlayerDropdown = ChildTab:AddDropdown({ Title = "اختار اللاعب", Options = GetPlayersList(), Callback = function(v)
+	if v == "مافيش لاعبين" then getgenv().Selec7tedPlayerNOme = nil else getgenv().Selec7tedPlayerNOme = v end
+end })
+ChildTab:AddButton({ "حدث اللاعبين", Callback = function()
+	if PlayerDropdown and PlayerDropdown.Refresh then PlayerDropdown:Refresh(GetPlayersList()) end
+end })
+ChildTab:AddToggle({ "راقبه", false, Callback = function(state)
+	local cam = workspace.CurrentCamera
+	if state then
+		if not getgenv().Selec7tedPlayerNOme then return end
+		if getgenv().SpyConnection then getgenv().SpyConnection:Disconnect() end
+		getgenv().SpyConnection = RunService.Heartbeat:Connect(function()
+			local target = Players:FindFirstChild(getgenv().Selec7tedPlayerNOme)
+			if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+				cam.CameraSubject = target.Character.Humanoid
+			end
+		end)
+	else
+		if getgenv().SpyConnection then getgenv().SpyConnection:Disconnect() getgenv().SpyConnection = nil end
+		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+			cam.CameraSubject = LocalPlayer.Character.Humanoid
+		end
+	end
+end })
+ChildTab:AddToggle({ "رسبن الطفل او احذفه", false, Callback = function(state)
+	if state then
+		pcall(function()
+			ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("SpawnChild", "BabyBoy")
+		end)
+		task.wait(0.5)
+		pcall(function()
+			local re2 = ReplicatedStorage.RE:FindFirstChild("1Bab1yFollo1w")
+			if re2 then re2:FireServer("CharacterFollowSpawnPlayer", "BabyBoy") end
+		end)
+	else
+		pcall(function()
+			ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("DeleteFollowCharacter")
+		end)
+	end
+end })
+ChildTab:AddToggle({ "ارسل الطفل", false, Callback = function(state)
+	local pl = LocalPlayer
+	local selectedPlayerName = getgenv().Selec7tedPlayerNOme
+	if not selectedPlayerName then return end
+	if state then
+		ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("SpawnChild", "BabyBoy")
+		task.wait(0.8)
+		if not workspace:FindFirstChild(pl.Name) or not workspace[pl.Name]:FindFirstChild("FollowCharacter") then
+			local re2 = ReplicatedStorage.RE:FindFirstChild("1Bab1yFollo1w")
+			if re2 then re2:FireServer("CharacterFollowSpawnPlayer", "BabyBoy") end
+		end
+		task.wait(0.2)
+		if workspace:FindFirstChild(pl.Name) then
+			for _, v in pairs(workspace[pl.Name]:GetChildren()) do
+				if v:IsA("BasePart") then v.CanCollide = true end
+			end
+		end
+		if workspace:FindFirstChild(selectedPlayerName) and workspace:FindFirstChild(pl.Name) and workspace[pl.Name]:FindFirstChild("FollowCharacter") then
+			workspace[pl.Name].FollowCharacter.Parent = workspace[selectedPlayerName]
+			if getgenv().BabyFollowConnection then getgenv().BabyFollowConnection:Disconnect() end
+			getgenv().BabyFollowConnection = RunService.Heartbeat:Connect(function()
+				local fc = workspace[selectedPlayerName]:FindFirstChild("FollowCharacter")
+				local hrp = workspace[selectedPlayerName]:FindFirstChild("HumanoidRootPart")
+				if fc and fc:FindFirstChild("Torso") and fc.Torso:FindFirstChild("BodyPosition") and hrp then
+					fc.Torso.BodyPosition.Position = hrp.Position - (hrp.CFrame.LookVector * 3)
+					fc.Torso.BodyGyro.CFrame = hrp.CFrame
+				end
+			end)
+		end
+	else
+		if getgenv().BabyFollowConnection then
+			getgenv().BabyFollowConnection:Disconnect()
+			getgenv().BabyFollowConnection = nil
+		end
+		ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Bab1yFollo1w"):FireServer("SpawnChild", "BabyBoy")
+	end
+end })
+getgenv().BangSpeed = 1
+ChildTab:AddSlider({ "سرعه البانق", 0.1, 2, nil, 1, Callback = function(v) getgenv().BangSpeed = v end })
+local bangActive1, connection1, togglePosition1 = false, nil, false
+ChildTab:AddToggle({ "بانق الطفل", false, Callback = function(Value)
+	bangActive1 = Value
+	local plr = Players.LocalPlayer
+	if not plr.Character then return end
+	local model = workspace:FindFirstChild(plr.Name)
+	if Value then
+		if not model or not model:FindFirstChild("FollowCharacter") then
+			local re2 = ReplicatedStorage:FindFirstChild("RE")
+			if re2 and re2:FindFirstChild("1Bab1yFollo1w") then
+				re2:FindFirstChild("1Bab1yFollo1w"):FireServer("CharacterFollowSpawnPlayer", "BabyBoy")
+			else return end
+		end
+		model = workspace:WaitForChild(plr.Name, 5)
+		if not model then return end
+		local baby = model:WaitForChild("FollowCharacter", 5)
+		if not baby then return end
+		if connection1 then connection1:Disconnect() end
+		connection1 = RunService.Heartbeat:Connect(function()
+			if bangActive1 and getgenv().Selec7tedPlayerNOme then
+				local targetPlayer = Players:FindFirstChild(getgenv().Selec7tedPlayerNOme)
+				if targetPlayer and targetPlayer.Character and targetPlayer.Character.PrimaryPart then
+					local head = targetPlayer.Character:FindFirstChild("Head")
+					if head then
+						local offset = togglePosition1 and 1 or 4
+						baby:SetPrimaryPartCFrame(head.CFrame * CFrame.new(0, -1, offset))
+						togglePosition1 = not togglePosition1
+						task.wait(getgenv().BangSpeed)
+					end
+				end
+			end
+		end)
+	else
+		if connection1 then connection1:Disconnect() connection1 = nil end
+	end
+end })
+local bangActive2, connection2, togglePosition2 = false, nil, false
+ChildTab:AddToggle({ "بانق وش الطفل", false, Callback = function(Value)
+	bangActive2 = Value
+	local plr = Players.LocalPlayer
+	if not plr.Character then return end
+	local model = workspace:FindFirstChild(plr.Name)
+	if Value then
+		if not model or not model:FindFirstChild("FollowCharacter") then
+			local re2 = ReplicatedStorage:FindFirstChild("RE")
+			if re2 and re2:FindFirstChild("1Bab1yFollo1w") then
+				re2:FindFirstChild("1Bab1yFollo1w"):FireServer("CharacterFollowSpawnPlayer", "BabyBoy")
+			end
+		end
+		model = workspace:WaitForChild(plr.Name, 5)
+		if not model then return end
+		local baby = model:WaitForChild("FollowCharacter", 5)
+		if not baby then return end
+		if connection2 then connection2:Disconnect() end
+		connection2 = RunService.Heartbeat:Connect(function()
+			if bangActive2 and getgenv().Selec7tedPlayerNOme then
+				local targetPlayer = Players:FindFirstChild(getgenv().Selec7tedPlayerNOme)
+				if targetPlayer and targetPlayer.Character and targetPlayer.Character.PrimaryPart then
+					local head = targetPlayer.Character:FindFirstChild("Head")
+					if head then
+						local offset = togglePosition2 and 1 or 4
+						baby:SetPrimaryPartCFrame(head.CFrame * CFrame.new(0, 1, -offset) * CFrame.Angles(0, math.rad(180), 0))
+						togglePosition2 = not togglePosition2
+						task.wait(getgenv().BangSpeed)
+					end
+				end
+			end
+		end)
+	else
+		if connection2 then connection2:Disconnect() connection2 = nil end
+	end
+end })
+
+local TabBriefcase = Library:MakeTab({ Title = "ادوات الحقيبه" })
+TabBriefcase:AddButton({ "الاسلحه", Callback = noop })
+TabBriefcase:AddButton({ "كيس حريق", Callback = function() PickTool("PaperbagFire") end })
+TabBriefcase:AddButton({ "سنايبر", Callback = function() PickTool("Sniper") end })
+TabBriefcase:AddButton({ "سيف خشبي", Callback = function() PickTool("SwordWood") end })
+TabBriefcase:AddButton({ "سيف ذهبي", Callback = function() PickTool("SwordGold") end })
+TabBriefcase:AddButton({ "اكس الشيطان", Callback = function() PickTool("AxeEvil") end })
+TabBriefcase:AddButton({ "الرمح الازرق", Callback = function() PickTool("JoustBlue") end })
+TabBriefcase:AddButton({ "الرمح الاحمر", Callback = function() PickTool("JoustRed") end })
+TabBriefcase:AddButton({ "قوس", Callback = function() PickTool("Bow") end })
+TabBriefcase:AddButton({ "قنبله", Callback = function() PickTool("Bomb") end })
+TabBriefcase:AddButton({ "كنبه", Callback = function() PickTool("Couch") end })
+TabBriefcase:AddButton({ "دامبل", Callback = function() PickTool("Weights") end })
+TabBriefcase:AddButton({ "سلم", Callback = function() PickTool("Ladder") end })
+TabBriefcase:AddButton({ "شجره", Callback = function() PickTool("Tree") end })
+TabBriefcase:AddButton({ "صندوق ذره", Callback = function() PickTool("Corn") end })
+TabBriefcase:AddButton({ "عصايه حديده غريبه", Callback = function() PickTool("Arch") end })
+TabBriefcase:AddButton({ "عصايه الصيد", Callback = function() PickTool("FishingRod") end })
+TabBriefcase:AddButton({ "عصايه العاب ناريه", Callback = function() PickTool("Sparkler") end })
+TabBriefcase:AddButton({ "عصايه المارشيملو", Callback = function() PickTool("Marshmello") end })
+TabBriefcase:AddButton({ "كشاف", Callback = function() PickTool("FlashLight") end })
+TabBriefcase:AddButton({ "شمعه", Callback = function() PickTool("Candle") end })
+TabBriefcase:AddButton({ "مثلث الكنيسه مضيء", Callback = function() PickTool("Crystal") end })
+TabBriefcase:AddButton({ "مخالب الوحش مضيء", Callback = function() PickTool("Crystals") end })
+TabBriefcase:AddButton({ "مسجل اغاني", Callback = function() PickTool("Boombox") end })
+TabBriefcase:AddButton({ "جيتار", Callback = function() PickTool("Guitar") end })
+TabBriefcase:AddButton({ "ميكروفون المذيع", Callback = function() PickTool("Microphone") end })
+TabBriefcase:AddButton({ "القرد الازرق النادر", Callback = function() PickTool("BlueMonkey") end })
+TabBriefcase:AddButton({ "القرد العادي", Callback = function() PickTool("BabyMonkey") end })
+TabBriefcase:AddButton({ "منظار", Callback = function() PickTool("Binocks") end })
+TabBriefcase:AddButton({ "كاس الفوز", Callback = function() PickTool("Trophy") end })
+TabBriefcase:AddButton({ "سرير النوم في غابه", Callback = function() PickTool("SleepingBag") end })
+TabBriefcase:AddButton({ "بالونه غريبه", Callback = function() PickTool("Balloon") end })
+TabBriefcase:AddButton({ "شنطه صفر", Callback = function() PickTool("CarryOn") end })
+TabBriefcase:AddButton({ "دلو ماء", Callback = function() PickTool("Bucket") end })
+TabBriefcase:AddButton({ "عربه سحب", Callback = function() PickTool("Wagon") end })
+TabBriefcase:AddButton({ "عربه المستشفي", Callback = function() PickTool("Stretcher") end })
+TabBriefcase:AddButton({ "سله المشتريات", Callback = function() PickTool("ShoppingCart") end })
+TabBriefcase:AddButton({ "كتاب سحري", Callback = function() PickTool("AgencyBook") end })
+TabBriefcase:AddButton({ "كتاب", Callback = function() PickTool("Book") end })
+TabBriefcase:AddButton({ "لوحه بيضاء", Callback = function() PickTool("Sign") end })
+TabBriefcase:AddButton({ "لوحه بنبي", Callback = function() PickTool("SignPink") end })
+TabBriefcase:AddButton({ "لوحه سوداء", Callback = function() PickTool("SignBlack") end })
+TabBriefcase:AddButton({ "لوحه حمراء", Callback = function() PickTool("SignRed") end })
+TabBriefcase:AddButton({ "اكل ومشروبات", Callback = noop })
+TabBriefcase:AddButton({ "تفاحه", Callback = function() PickTool("Apple") end })
+TabBriefcase:AddButton({ "كولا", Callback = function() PickTool("Coke") end })
+TabBriefcase:AddButton({ "حليب", Callback = function() PickTool("Milk") end })
+TabBriefcase:AddButton({ "ميلك شيك بالشوكولاته", Callback = function() PickTool("ShakeChocolate") end })
+TabBriefcase:AddButton({ "كيكه بتوت الازرق", Callback = function() PickTool("MuffinBlueBerry") end })
+TabBriefcase:AddButton({ "ادوات البنك", Callback = noop })
+TabBriefcase:AddButton({ "شنطه بتكوين", Callback = function() PickTool("DuffleBagBitcoin") end })
+TabBriefcase:AddButton({ "شنطه الماس", Callback = function() PickTool("DuffleBagDiamonds") end })
+TabBriefcase:AddButton({ "شنطه ذهب", Callback = function() PickTool("DuffleBagGold") end })
+TabBriefcase:AddButton({ "مفتاح البنك", Callback = function() PickTool("BankGateKey") end })
+TabBriefcase:AddButton({ "كارت مفتاح البنك", Callback = function() PickTool("BankKeyCard") end })
+TabBriefcase:AddButton({ "بطاقه بيضاء", Callback = function() PickTool("KeyCardWhite") end })
+TabBriefcase:AddButton({ "اداه الانتقال", Callback = noop })
+TabBriefcase:AddButton({ "اداه الانتقال للماوس", Callback = function()
+	local mouse = Player:GetMouse()
+	local Tool = Instance.new("Tool")
+	Tool.Name = "Click TP"
+	Tool.RequiresHandle = false
+	Tool.Parent = Player.Backpack
+	Tool.Activated:Connect(function()
+		pcall(function()
+			if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and mouse and mouse.Hit then
+				Player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 2.5, 0))
+			end
+		end)
+	end)
+end })
+
+local ColoringTab = Library:MakeTab({ Title = "تلوين ادوات الشنطه" })
+ColoringTab:AddButton({ "تلوين الادوات", Callback = noop })
+local re = ReplicatedStorage:WaitForChild("RE")
+local running = false
+local ToolName = "BabyRattle"
+local Tools = {
+	["حق الطلاء"] = "PaintRoller", ["حمره"] = "Lipstick", ["قوس حق الاسهم"] = "Bow",
+	["راديو الاغاني"] = "Boombox", ["تارموس"] = "Thermos", ["دونات"] = "Donut",
+	["مشط حق الاحصنه"] = "HorseBrush", ["عصي"] = "GlowingBatons", ["مكبر صوت"] = "Megaphone",
+	["شمعه"] = "Candle", ["مشعل"] = "GuardTorch", ["لعبه الاطفال"] = "BabyRattle"
+}
+local function equipTool(name)
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+	local tool = LocalPlayer.Backpack:WaitForChild(name, 2)
+	if tool then
+		tool.Parent = char
+		hum:EquipTool(tool)
+	end
+	return tool
+end
+local function hsv(t) return Color3.fromHSV(t % 1, 1, 1) end
+ColoringTab:AddDropdown({ Title = "اختار الاداه", Options = {"حق الطلاء","حمره","قوس حق الاسهم","راديو الاغاني","تارموس","دونات","مشط حق الاحصنه","عصي","مكبر صوت","شمعه","مشعل","لعبه الاطفال"}, Callback = function(value) ToolName = Tools[value] end })
+ColoringTab:AddToggle({ "تلوين الاداه", false, Callback = function(state)
+	running = state
+	if not state then return end
+	task.spawn(function()
+		re:WaitForChild("1Clea1rTool1s"):FireServer("ClearAllTools")
+		task.wait(0.2)
+		re:WaitForChild("1Too1l"):InvokeServer("PickingTools", ToolName)
+		task.wait(0.3)
+		local tool = equipTool(ToolName)
+		if not tool then return end
+		local setColor = LocalPlayer.PlayerGui:WaitForChild("ToolGui"):WaitForChild("ToolSettings"):WaitForChild("Settings"):WaitForChild("PropsColor"):WaitForChild("SetColor")
+		local hue = 0
+		local current = hsv(0)
+		local conn
+		conn = RunService.RenderStepped:Connect(function(dt)
+			if not running then conn:Disconnect() return end
+			hue += dt * 0.3
+			local target = hsv(hue)
+			current = current:Lerp(target, dt * 5)
+			setColor:FireServer(current)
+		end)
+	end)
+end })
+local hairColors = {Color3.new(1,1,0),Color3.new(0,0,1),Color3.new(1,0,1),Color3.new(1,1,1),Color3.new(0,1,0),Color3.new(0.5,0,1),Color3.new(1,0.647,0),Color3.new(0,1,1)}
+local isActive = false
+ColoringTab:AddToggle({ "تلوين الشعر", false, Callback = function(value)
+	isActive = value
+	if isActive then
+		task.spawn(function()
+			local i = 1
+			while isActive do
+				if not isActive then break end
+				ReplicatedStorage:WaitForChild("RE"):WaitForChild("1Max1y"):FireServer("ChangeHairColor2", hairColors[i])
+				task.wait(0.1)
+				i = i % #hairColors + 1
+			end
+		end)
+	end
+end })
+local bodyColors = {
+	"Pastel brown", "Pastel yellow", "Pastel blue", "Pastel green", "Pastel pink",
+	"Really red", "Bright orange", "Bright blue", "Bright violet", "Bright green",
+	"Bright yellow", "White", "Black", "Dark stone grey", "Medium stone grey",
+	"Light stone grey", "Bright red", "Bright yellowish green", "Bright bluish green",
+	"Bright purple", "Bright pink", "Reddish brown", "Earth green", "Sand red",
+	"Sand blue", "Sand green", "Dark green", "Navy blue", "Toothpaste", "Cyan",
+	"Hot pink", "Crimson", "Royal purple", "Neon orange", "Neon green", "Neon pink",
+	"Neon blue", "Gold", "Bright gold", "New Yeller", "Dark orange", "Deep blue",
+	"Maroon", "Bright maroon"
+}
+local rainbowEnabled = false
+ColoringTab:AddToggle({ "تلوين الجسم", false, Callback = function(v)
+	rainbowEnabled = v
+	if v then
+		task.spawn(function()
+			while rainbowEnabled do
+				for _, color in ipairs(bodyColors) do
+					if not rainbowEnabled then break end
+					local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+					if Remotes then
+						local ChangeBodyColor = Remotes:FindFirstChild("ChangeBodyColor")
+						if ChangeBodyColor then ChangeBodyColor:FireServer(color) end
+					end
+					task.wait(0.3)
+				end
+			end
+		end)
+	end
+end })
+ColoringTab:AddSlider({ "سرعه التلوين", 1, 5, nil, 3, Callback = function(Value) end })
+local rainbowHandToolEnabled = false
+ColoringTab:AddToggle({ "لون اي اداه تيجي في يدك", false, Callback = function(state)
+	rainbowHandToolEnabled = state
+	if not state then return end
+	task.spawn(function()
+		local hue = 0
+		while rainbowHandToolEnabled do
+			local dt = RunService.RenderStepped:Wait()
+			hue = (hue + dt * 0.5) % 1
+			local c = Color3.fromHSV(hue, 1, 1)
+			pcall(function()
+				local char = LocalPlayer.Character
+				if not char then return end
+				local tool = char:FindFirstChildOfClass("Tool")
+				if not tool then return end
+				local pg = LocalPlayer:FindFirstChild("PlayerGui")
+				if not pg then return end
+				local tg = pg:FindFirstChild("ToolGui")
+				if not tg then return end
+				local ts = tg:FindFirstChild("ToolSettings")
+				if not ts then return end
+				local st = ts:FindFirstChild("Settings")
+				if not st then return end
+				local pc = st:FindFirstChild("PropsColor")
+				if not pc then return end
+				local sc = pc:FindFirstChild("SetColor")
+				if not sc then return end
+				sc:FireServer(c)
+			end)
+		end
+	end)
+end })
+
+local TabTeleport = Library:MakeTab({ Title = "الانتقالات" })
+local teleportButtons = {
+	{"الفندق", CFrame.new(192,4,272)},{"ساحه المطاعم", CFrame.new(136,4,117)},{"المقر السري", CFrame.new(-119,-28,235)},
+	{"البيت المهجور", CFrame.new(986,4,63)},{"الكهف", CFrame.new(672,4,-296)},{"تحت الماب", CFrame.new(505,-75,143)},
+	{"المدرسه", CFrame.new(-312,4,211)},{"محل البيتزا", CFrame.new(161,8,52)},{"الراسبون", CFrame.new(-26,4,-23)},
+	{"اعلي الجسر", CFrame.new(-589,141,-59)},{"المستشفي", CFrame.new(-309,4,71)},{"المختبر السري", CFrame.new(179,4,-464)},
+	{"تحت الماب 1", CFrame.new(0,4,-495)},{"تحت الماب 2", CFrame.new(-343,4,-613)},{"الجزيره", CFrame.new(-1925,23,127)},
+	{"ساحه الفنادق", CFrame.new(182,4,150)},{"جبل التلج", CFrame.new(-670,251,765)},{"البنك", CFrame.new(2.28,4.65,254.58)},
+	{"محل الملابس", CFrame.new(-46.15,4.65,253.20)},{"محل الحيوانات", CFrame.new(-88.48,22.05,262.34)},
+	{"العياده", CFrame.new(-53.58,22.15,265.61)},{"المقهي", CFrame.new(-97.12,4.65,254.99)}
+}
+for _, btn in ipairs(teleportButtons) do
+	TabTeleport:AddButton({ btn[1], Callback = function()
+		pcall(function()
+			local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then hrp.CFrame = btn[2] end
+		end)
+	end })
+end
+
+local FunTab = Library:MakeTab({ Title = "تخريب على الاعبين" })
+local funSelectedPlayer = nil
+local headSitConn = nil
+local function getOtherPlayers()
+	local list = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then table.insert(list, p.Name) end
+	end
+	return list
+end
+FunTab:AddButton({ "اختار الاعب", Callback = noop })
+local funDrop = FunTab:AddDropdown({ Title = "اختار مين", Options = getOtherPlayers(), Callback = function(v) funSelectedPlayer = v end })
+FunTab:AddButton({ "حدث القائمه", Callback = function() if funDrop and funDrop.Refresh then funDrop:Refresh(getOtherPlayers()) end end })
+FunTab:AddToggle({ "اقعد علي راسه", false, Callback = function(state)
+	local char = LocalPlayer.Character
+	if not char then return end
+	local hum = char:FindFirstChild("Humanoid")
+	if headSitConn then headSitConn:Disconnect(); headSitConn = nil end
+	if state and funSelectedPlayer then
+		local target = Players:FindFirstChild(funSelectedPlayer)
+		if target and target.Character and hum then
+			hum.Sit = true
+			headSitConn = RunService.Heartbeat:Connect(function()
+				if target.Character and target.Character:FindFirstChild("Head") and hum.Sit then
+					char.HumanoidRootPart.CFrame = target.Character.Head.CFrame * CFrame.new(0, 1.6, 0.4)
+				else
+					if headSitConn then headSitConn:Disconnect(); headSitConn = nil end
+					if hum then hum.Sit = false end
+				end
+			end)
+		end
+	elseif hum then
+		hum.Sit = false
+	end
+end })
+local inviteSelectedEnabled = false
+FunTab:AddToggle({ "سبام دعوات للي مختاره", false, Callback = function(state)
+	inviteSelectedEnabled = state
+	if state then
+		task.spawn(function()
+			while inviteSelectedEnabled do
+				local target = Players:FindFirstChild(funSelectedPlayer)
+				if target and target ~= LocalPlayer then
+					for _ = 1, 10 do
+						pcall(function() ReplicatedStorage.Remotes.InvitePlayerToFamily:FireServer(target.UserId, "Wheel") end)
+					end
+				end
+				task.wait(0.1)
+			end
+		end)
+	end
+end })
+local inviteAllEnabled = false
+FunTab:AddToggle({ "سبام دعوات لكل السرفر", false, Callback = function(state)
+	inviteAllEnabled = state
+	if state then
+		task.spawn(function()
+			while inviteAllEnabled do
+				for _, p in ipairs(Players:GetPlayers()) do
+					if p ~= LocalPlayer then
+						for _ = 1, 5 do
+							pcall(function() ReplicatedStorage.Remotes.InvitePlayerToFamily:FireServer(p.UserId, "Wheel") end)
+						end
+					end
+				end
+				task.wait(0.1)
+			end
+		end)
+	end
+end })
+FunTab:AddButton({ "ارسل رسالة تحذير لكل السرفر", Callback = function()
+	pcall(function() ReplicatedStorage.Remotes.GunEquip:InvokeServer("Assault", "StockAssault") end)
+	for _, v in ipairs(LocalPlayer.Backpack:GetChildren()) do
+		if v:IsA("Tool") then v.Parent = LocalPlayer.Character end
+	end
+	local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		hrp.CFrame = CFrame.new(333, 4, 68)
+		LocalPlayer.Character.Humanoid:MoveTo(Vector3.new(333, 4, 80))
+	end
+end })
+FunTab:AddButton({ "خذ sign البيضاء", Callback = function() GetWhiteSign() end })
+local funTargetName = ""
+FunTab:AddTextBox({ "اسم الضحية", "", "اكتب اسم الضحية", Callback = function(v) funTargetName = v end })
+local funSignText = ""
+FunTab:AddTextBox({ "النص", "", "اكتب النص هنا", Callback = function(v) funSignText = v end })
+FunTab:AddButton({ "تغيير لوحة الضحية", Callback = function()
+	if funSignText == "" or funTargetName == "" then return end
+	local lower = funTargetName:lower()
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Name:lower():find(lower, 1, true) and #lower >= 2 then
+			local char = p.Character
+			WriteOnSign(char and char:FindFirstChild("Sign"), funSignText)
+		end
+	end
+end })
+FunTab:AddButton({ "تغيير لوحتي أنا", Callback = function()
+	if funSignText == "" then return end
+	local char = LocalPlayer.Character
+	WriteOnSign(char and char:FindFirstChild("Sign"), funSignText)
+end })
+FunTab:AddButton({ "تغيير لوح كل السيرفر", Callback = function()
+	if funSignText == "" then return end
+	for _, p in ipairs(Players:GetPlayers()) do
+		local char = p.Character
+		WriteOnSign(char and char:FindFirstChild("Sign"), funSignText)
+	end
+end })
+local iceSwitchRunning = false
+local iceSwitchTask = nil
+local function findIceCreamShop()
+	local dev = workspace:FindFirstChild("__DEV") or ReplicatedStorage:FindFirstChild("__DEV")
+	if not dev then return nil, nil end
+	local swap = dev:FindFirstChild("SwapablePOIs")
+	if not swap then return nil, nil end
+	local pi = swap:FindFirstChild("PastryAndIceCream")
+	if not pi then return nil, nil end
+	local pb = pi:FindFirstChild("PlotButtons")
+	if not pb then return nil, nil end
+	local pastry = pb:FindFirstChild("PastryShop")
+	local iceCream = pb:FindFirstChild("IceCreamShop")
+	if not pastry or not iceCream then return nil, nil end
+	return pastry:FindFirstChildOfClass("ClickDetector"), iceCream:FindFirstChildOfClass("ClickDetector")
+end
+FunTab:AddToggle({ "تبديل محلات الايسكريم", false, Callback = function(state)
+	iceSwitchRunning = state
+	if iceSwitchTask then task.cancel(iceSwitchTask); iceSwitchTask = nil end
+	if state then
+		local pastry, iceCream = findIceCreamShop()
+		if not pastry or not iceCream then return false end
+		iceSwitchTask = task.spawn(function()
+			while iceSwitchRunning do
+				pcall(function() fireclickdetector(pastry) end)
+				task.wait(0.01)
+				pcall(function() fireclickdetector(iceCream) end)
+				task.wait(0.01)
+			end
+		end)
+	end
+end })
+
+local propList = {
+	{Name = "روبوت كبير", Arg1 = "ScreensRobotBig", Arg2 = "Screens", Arg3 = "Play"},
+	{Name = "كاس", Arg1 = "AwardTrophy", Arg2 = "Award", Arg3 = "Play"},
+	{Name = "هيكل عظمي", Arg1 = "DeadSkeletonStandArms", Arg2 = "Dead", Arg3 = "Play"},
+	{Name = "شجره", Arg1 = "PlantOutsideTreeGreenSmall", Arg2 = "Plant", Arg3 = "Play"},
+	{Name = "حصان اسود", Arg1 = "HorseBigBlack", Arg2 = "Horse", Arg3 = "Play"},
+	{Name = "تلفاز", Arg1 = "ScreensTVBig", Arg2 = "Screens", Arg3 = "Play"},
+	{Name = "روبوت ابيض", Arg1 = "ScreensRobotMedium", Arg2 = "Screens", Arg3 = "Play"},
+	{Name = "عامود", Arg1 = "ElectricPoleSimple", Arg2 = "Infrastructure", Arg3 = "Play"},
+	{Name = "جدار", Arg1 = "Wall", Arg2 = "Building", Arg3 = "Play"},
+	{Name = "مرايا", Arg1 = "GlassFull", Arg2 = "Building", Arg3 = "Play"},
+	{Name = "زومبي ميت", Arg1 = "DeadZombie", Arg2 = "Dead", Arg3 = "Play"},
+	{Name = "عامود كهرباء طويل", Arg1 = "TransmissionTower", Arg2 = "Infrastructure", Arg3 = "Play"},
+	{Name = "صخره عملاقه", Arg1 = "PlantRockBig", Arg2 = "Plant", Arg3 = "Play"},
+	{Name = "سهم سباق في الارض", Arg1 = "ShapeCarRaceStraight", Arg2 = "Shape", Arg3 = "Play"},
+	{Name = "موتوسيكل ازرق", Arg1 = "ArcadeBikeBlue", Arg2 = "Screens", Arg3 = "Play"},
+	{Name = "موتوسيكل اصفر", Arg1 = "ArcadeBikeYellow", Arg2 = "Screens", Arg3 = "Play"},
+	{Name = "قرد الحضن", Arg1 = "BabyMonkey", Arg2 = "Baby", Arg3 = "Play"},
+	{Name = "كشاف نيون صغير", Arg1 = "Light", Arg2 = "Building", Arg3 = "Play"},
+	{Name = "كشاف طويل كبير", Arg1 = "SoccerLights", Arg2 = "Lights", Arg3 = "Play"},
+	{Name = "كشاف اخضر", Arg1 = "LightsSpotLightGreen", Arg2 = "Lights", Arg3 = "Play"},
+	{Name = "كشاف احمر", Arg1 = "LightsSpotLightRed", Arg2 = "Lights", Arg3 = "Play"},
+	{Name = "كشاف ابيض", Arg1 = "LightsSpotLightWhite", Arg2 = "Lights", Arg3 = "Play"},
+	{Name = "عامود طويل ضخم", Arg1 = "TubeLamp", Arg2 = "Lights", Arg3 = "Play"}
+}
+local propNames = {}
+for _, p in ipairs(propList) do table.insert(propNames, p.Name) end
+local selectedProp = propList[1]
+local propPrefix = "Prop" .. LocalPlayer.Name
+
+local function GetMyBots()
+	local result = {}
+	local wsCom = workspace:FindFirstChild("WorkspaceCom")
+	local folder = wsCom and wsCom:FindFirstChild("001_TrafficCones")
+	if folder then
+		for _, p in ipairs(folder:GetChildren()) do
+			if string.find(p.Name, propPrefix) and p:FindFirstChild("SetCurrentCFrame") then
+				table.insert(result, p)
+			end
+		end
+	end
+	if #result == 0 then
+		for _, p in ipairs(workspace:GetChildren()) do
+			if string.find(p.Name, propPrefix) and p:FindFirstChild("SetCurrentCFrame") then
+				table.insert(result, p)
+			end
+		end
+	end
+	return result
+end
+
+local function getPropMakerTool()
+	local char = LocalPlayer.Character
+	if char then
+		local t = char:FindFirstChild("PropMaker")
+		if t then return t end
+	end
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if backpack then
+		local t = backpack:FindFirstChild("PropMaker")
+		if t then return t end
+	end
+	return nil
+end
+
+local function spawnOneProp(prop)
+	local RE = ReplicatedStorage:FindFirstChild("RE") or workspace:FindFirstChild("RE") or ReplicatedStorage
+	local b_clear = RE:FindFirstChild("1Clea1rTool1s")
+	local b_tool = RE:FindFirstChild("1Too1l")
+	local tool = getPropMakerTool()
+	if not tool and b_tool then
+		pcall(function() b_tool:InvokeServer("PickingTools", "PropMaker") end)
+		task.wait(0.3)
+		tool = getPropMakerTool()
+	end
+	local char = LocalPlayer.Character
+	if tool and char and char:FindFirstChild("Humanoid") then
+		pcall(function() char.Humanoid:EquipTool(tool) end)
+	end
+	task.wait(0.2)
+	local targetTerrain = workspace:FindFirstChild("Street") or workspace:FindFirstChild("Map") or workspace:FindFirstChild("Terrain") or workspace
+	if b_clear then
+		pcall(function() b_clear:FireServer("RequestingPropName", prop.Arg1, prop.Arg2, prop.Arg3) end)
+	end
+	task.wait(0.25)
+	tool = getPropMakerTool()
+	if tool then
+		if char and char:FindFirstChild("Humanoid") and tool.Parent ~= char then
+			pcall(function() char.Humanoid:EquipTool(tool) end)
+		end
+		local placeTool = tool:FindFirstChild("Tool_PropMake")
+		if placeTool and char and char:FindFirstChild("HumanoidRootPart") then
+			local root = char.HumanoidRootPart
+			local pos = root.Position + Vector3.new(0, -3, 0)
+			pcall(function() placeTool:FireServer(targetTerrain, pos) end)
+		end
+	end
+	pcall(function()
+		VirtualUser:Button1Down(Vector2.new(0, 500), workspace.CurrentCamera.CFrame)
+		task.wait(0.05)
+		VirtualUser:Button1Up(Vector2.new(0, 500), workspace.CurrentCamera.CFrame)
+	end)
+	task.wait(0.35)
+end
+
+local faceOffsets = {
+	Vector3.new(0, 0.5, -1.8), Vector3.new(-1.2, 0.5, -1.8), Vector3.new(1.2, 0.5, -1.8),
+	Vector3.new(-2.4, 0.5, -1.8), Vector3.new(2.4, 0.5, -1.8), Vector3.new(0, 1.8, -1.8),
+	Vector3.new(-1.2, 1.8, -1.8), Vector3.new(1.2, 1.8, -1.8), Vector3.new(-2.4, 1.8, -1.8),
+	Vector3.new(2.4, 1.8, -1.8), Vector3.new(0, 3.0, -1.8), Vector3.new(-1.2, 3.0, -1.8),
+	Vector3.new(1.2, 3.0, -1.8), Vector3.new(-2.4, 3.0, -1.8), Vector3.new(2.4, 3.0, -1.8),
+	Vector3.new(0, 0.8, -1.8), Vector3.new(-1.2, 0.8, -1.8), Vector3.new(1.2, 0.8, -1.8),
+	Vector3.new(-2.4, 0.8, -1.8), Vector3.new(2.4, 0.8, -1.8)
+}
+local backOffsets = {
+	Vector3.new(0, 0.5, 1.8), Vector3.new(-1.2, 0.5, 1.8), Vector3.new(1.2, 0.5, 1.8),
+	Vector3.new(-2.4, 0.5, 1.8), Vector3.new(2.4, 0.5, 1.8), Vector3.new(0, 1.8, 1.8),
+	Vector3.new(-1.2, 1.8, 1.8), Vector3.new(1.2, 1.8, 1.8), Vector3.new(-2.4, 1.8, 1.8),
+	Vector3.new(2.4, 1.8, 1.8), Vector3.new(0, 3.0, 1.8), Vector3.new(-1.2, 3.0, 1.8),
+	Vector3.new(1.2, 3.0, 1.8), Vector3.new(-2.4, 3.0, 1.8), Vector3.new(2.4, 3.0, 1.8),
+	Vector3.new(0, 0.8, 1.8), Vector3.new(-1.2, 0.8, 1.8), Vector3.new(1.2, 0.8, 1.8),
+	Vector3.new(-2.4, 0.8, 1.8), Vector3.new(2.4, 0.8, 1.8)
+}
+
+local function computeCFrame(mode, i, total, hrp, timer)
+	if mode == "back" then
+		local offset = backOffsets[i] or Vector3.new(0, 0.5, 1.8)
+		local retreat = (math.sin(timer * 27 + (i * 0.3)) + 1) * 1.5
+		local localPos = Vector3.new(offset.X, offset.Y, offset.Z + retreat)
+		local worldPos = hrp.CFrame:PointToWorldSpace(localPos)
+		return CFrame.new(worldPos, hrp.Position + Vector3.new(0, offset.Y, 0)) * CFrame.Angles(0, math.rad(180), 0)
+	elseif mode == "face" then
+		local offset = faceOffsets[i] or Vector3.new(0, 0.5, -1.8)
+		local retreat = (math.sin(timer * 27 + (i * 0.3)) + 1) * 1.5
+		local localPos = Vector3.new(offset.X, offset.Y, offset.Z - retreat)
+		local worldPos = hrp.CFrame:PointToWorldSpace(localPos)
+		return CFrame.new(worldPos, hrp.Position + Vector3.new(0, offset.Y, 0)) * CFrame.Angles(0, math.rad(180), 0)
+	elseif mode == "combined" then
+		local isBack = (i % 2 == 0)
+		local idx = math.ceil(i / 2)
+		if isBack then
+			local offset = backOffsets[idx] or Vector3.new(0, 0.5, 1.8)
+			local retreat = (math.sin(timer * 27 + (i * 0.3)) + 1) * 1.5
+			local localPos = Vector3.new(offset.X, offset.Y, offset.Z + retreat)
+			local worldPos = hrp.CFrame:PointToWorldSpace(localPos)
+			return CFrame.new(worldPos, hrp.Position + Vector3.new(0, offset.Y, 0)) * CFrame.Angles(0, math.rad(180), 0)
+		else
+			local offset = faceOffsets[idx] or Vector3.new(0, 0.5, -1.8)
+			local retreat = (math.sin(timer * 27 + (i * 0.3)) + 1) * 1.5
+			local localPos = Vector3.new(offset.X, offset.Y, offset.Z - retreat)
+			local worldPos = hrp.CFrame:PointToWorldSpace(localPos)
+			return CFrame.new(worldPos, hrp.Position + Vector3.new(0, offset.Y, 0)) * CFrame.Angles(0, math.rad(180), 0)
+		end
+	elseif mode == "circle" then
+		local angle = (i / total) * math.pi * 2
+		local retreat = math.sin(timer * 3 + (i * 0.3)) * 7.5 - 7.5
+		local radius = 2.8 + retreat
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local currentPos = hrp.Position + Vector3.new(x, -0.2, z)
+		local lookAtPos = Vector3.new(hrp.Position.X, currentPos.Y, hrp.Position.Z)
+		return CFrame.new(currentPos, lookAtPos) * CFrame.Angles(0, math.rad(180), 0)
+	elseif mode == "circleOut" then
+		local angle = (i / total) * math.pi * 2
+		local bangDistance = (math.sin(timer * 3 + (i * 0.2)) * 20) + 20
+		local radius = 3 + bangDistance
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local currentPos = hrp.Position + Vector3.new(x, 0, z)
+		local lookAwayPos = currentPos + Vector3.new(x, 0, z)
+		return CFrame.new(currentPos, lookAwayPos) * CFrame.Angles(0, math.rad(180), 0)
+	elseif mode == "lineFront" then
+		local spacing = 2.5
+		local offsetX = (i - (total + 1) / 2) * spacing
+		local bangDistance = (math.sin(timer * 3 + (i * 0.1)) * 20) - 20
+		local localPos = Vector3.new(offsetX, 0, -3 + bangDistance)
+		local worldPos = hrp.CFrame:PointToWorldSpace(localPos)
+		local forwardLook = worldPos + (hrp.CFrame.LookVector * -10)
+		return CFrame.new(worldPos, forwardLook) * CFrame.Angles(0, math.rad(180), 0)
+	elseif mode == "spin" then
+		local angle = (i / total) * math.pi * 2 + (tick() * 7)
+		local radius = 4.5
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local currentPos = hrp.Position + Vector3.new(x, 0.2, z)
+		local lookAtPos = Vector3.new(hrp.Position.X, currentPos.Y, hrp.Position.Z)
+		return CFrame.new(currentPos, lookAtPos) * CFrame.Angles(0, math.rad(180), 0)
+	elseif mode == "war" then
+		local pairIndex = math.ceil(i / 2)
+		local totalPairs = math.max(1, math.ceil(total / 2))
+		local angle = (pairIndex / totalPairs) * math.pi * 2
+		local pairCenter = hrp.Position + Vector3.new(math.cos(angle) * 5.5, 0.5, math.sin(angle) * 5.5)
+		local tangent = Vector3.new(-math.sin(angle), 0, math.cos(angle))
+		local isFirst = (i % 2 == 1)
+		local posA = pairCenter + tangent * 1.2
+		local posB = pairCenter - tangent * 1.2
+		local shake = Vector3.new(math.random(-25, 25) / 10, math.random(-25, 25) / 10, math.random(-25, 25) / 10)
+		if isFirst then
+			return CFrame.new(posA + shake, posB) * CFrame.Angles(0, math.rad(180), 0)
+		else
+			return CFrame.new(posB + shake, posA) * CFrame.Angles(0, math.rad(180), 0)
+		end
+	elseif mode == "fling" then
+		local rx = math.random(-15, 15)
+		local ry = math.random(-10, 15)
+		local rz = math.random(-15, 15)
+		local currentPos = hrp.Position + Vector3.new(rx, ry, rz)
+		return CFrame.new(currentPos) * CFrame.Angles(math.rad(math.random(-180, 180)), math.rad(math.random(-180, 180)), math.rad(math.random(-180, 180)))
+	end
+	return nil
+end
+
+local moveTab = Library:MakeTab({ Title = "تحركات الprops واشكال لها" })
+local propSelectedPlayer = nil
+local moveSpeed = 5
+local moveDistance = 10
+local moveHeight = 0
+local rotY = 0
+local rotX = 0
+local rotZ1 = 0
+local rotZ2 = 0
+local moveShape = "ذيل قرش"
+local moveShapeEnabled = false
+local noShapeEnabled = false
+local rainbowMoveRunning = false
+local moveTime = 0
+local landPositions = {}
+local moveShapesList = {
+	"ذيل قرش", "جناحات", "جناحات مختلفه", "اعصار صغير", "orbit",
+	"حبل", "ني* قدامك", "ذيل", "ز*", "اكس خلف الاعب",
+	"دائره خلف الاعب", "مربع خلف الاعب", "عشوائي بلارض", "يد واصبع", "ز* 67"
+}
+local function getMovePlayersList()
+	local list = { "على نفسك" }
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Name ~= LocalPlayer.Name then table.insert(list, p.Name) end
+	end
+	return list
+end
+moveTab:AddSlider({ "السرعة", 0, 20, nil, 5, Callback = function(v) moveSpeed = v end })
+moveTab:AddSlider({ "المسافة", 0, 100, nil, 10, Callback = function(v) moveDistance = v end })
+moveTab:AddSlider({ "الارتفاع", -80, 80, nil, 0, Callback = function(v) moveHeight = v end })
+moveTab:AddSlider({ "لف يمين ويسار", -180, 180, nil, 0, Callback = function(v) rotY = v end })
+moveTab:AddSlider({ "لف فوق ولورا", -180, 180, nil, 0, Callback = function(v) rotX = v end })
+moveTab:AddSlider({ "زاوية فوق يمين وفوق يسار", -180, 180, nil, 0, Callback = function(v) rotZ1 = v end })
+moveTab:AddSlider({ "زاوية فوق يمين وتحت يسار", -180, 180, nil, 0, Callback = function(v) rotZ2 = v end })
+moveTab:AddDropdown({ Title = "شكل", Options = moveShapesList, Callback = function(v) moveShape = v end })
+local moveDrop = moveTab:AddDropdown({ Title = "اختار الاعب", Options = getMovePlayersList(), Callback = function(v)
+	propSelectedPlayer = (v == "على نفسك") and LocalPlayer.Name or v
+end })
+moveTab:AddButton({ "حدث القائمه", Callback = function()
+	if moveDrop and moveDrop.Refresh then moveDrop:Refresh(getMovePlayersList()) end
+end })
+moveTab:AddButton({ "هات الصندوق", Callback = function()
+	pcall(function()
+		ReplicatedStorage:WaitForChild("RE"):FindFirstChild("1Too1l"):InvokeServer("PickingTools", "PropMaker")
+	end)
+	task.wait(0.5)
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local backpack = LocalPlayer:WaitForChild("Backpack")
+	local tool = backpack:FindFirstChild("PropMaker") or char:FindFirstChild("PropMaker")
+	if tool then
+		task.wait(0.1)
+		tool.Parent = char
+	end
+end })
+local shapeToggle, noShapeToggle
+shapeToggle = moveTab:AddToggle({ "تشغيل حركات الprops انت اخترتها", false, Callback = function(state)
+	moveShapeEnabled = state
+	if state and noShapeToggle and noShapeToggle.SetToggle then pcall(function() noShapeToggle.SetToggle(false) end) end
+end })
+noShapeToggle = moveTab:AddToggle({ "تشغيل تحكم props بدون اشكال", false, Callback = function(state)
+	noShapeEnabled = state
+	if state and shapeToggle and shapeToggle.SetToggle then pcall(function() shapeToggle.SetToggle(false) end) end
+end })
+moveTab:AddToggle({ "تلوين props بيسويه رينبو", false, Callback = function(state)
+	rainbowMoveRunning = state
+	if not state then return end
+	task.spawn(function()
+		local hue = 0
+		while rainbowMoveRunning do
+			local dt = RunService.RenderStepped:Wait()
+			hue = (hue + dt * 0.5) % 1
+			local c = Color3.fromHSV(hue, 1, 1)
+			for _, p in ipairs(GetMyBots()) do
+				local cc = p:FindFirstChild("ChangePropColor")
+				if cc then
+					task.spawn(function() pcall(function() cc:InvokeServer(c) end) end)
+				end
+			end
+		end
+	end)
+end })
+
+local function computeMoveShape(mode, i, total, h, cycleTime)
+	local lookDir = h.CFrame.LookVector
+	local rightDir = h.CFrame.RightVector
+	if mode == "basic" then
+		local angle = (i / total) * math.pi * 2 + cycleTime
+		return h.CFrame * CFrame.new(math.cos(angle) * moveDistance, 0, math.sin(angle) * moveDistance)
+	elseif mode == "ذيل قرش" then
+		local offset = (i - 1) * 1.5
+		local swing = math.sin(cycleTime + i * 0.5) * (moveDistance * 0.2)
+		return h.CFrame * CFrame.new(swing, 0, 2 + offset + (moveDistance * 0.1))
+	elseif mode == "جناحات" then
+		local s = (i % 2 == 0) and 1 or -1
+		local l = math.ceil(i / 2)
+		return h.CFrame * CFrame.new(s * (1 + l * 0.5) * (moveDistance / 5), l * 0.3, 1) * CFrame.Angles(0, math.rad(s * 30) + math.sin(cycleTime) * 0.2, math.rad(s * 15))
+	elseif mode == "جناحات مختلفه" then
+		local s = (i % 2 == 0) and 1 or -1
+		local l = math.ceil(i / 2)
+		local flap = math.sin(cycleTime) * 0.8 + math.sin(cycleTime * 2) * 0.3
+		return h.CFrame * CFrame.new(s * (1 + l * 0.5) * (moveDistance / 5), l * 0.3 + flap * (1 + l * 0.15), 1) * CFrame.Angles(math.rad(flap * 25), math.rad(s * 30), math.rad(s * 15 + flap * 12.5))
+	elseif mode == "اعصار صغير" then
+		local angle = i * 1.5 + cycleTime
+		local radius = (1 + i * 0.4) * (moveDistance / 5)
+		return h.CFrame * CFrame.new(math.cos(angle) * radius, i * 0.8 - 2, math.sin(angle) * radius)
+	elseif mode == "orbit" then
+		local angle = (i / total) * math.pi * 2 + cycleTime
+		return h.CFrame * CFrame.new(math.cos(angle) * moveDistance, math.sin(cycleTime) * 0.5, math.sin(angle) * moveDistance)
+	elseif mode == "حبل" then
+		local angle = (i / total) * math.pi * 2 + cycleTime
+		local radius = (4 + i * 0.8) * (moveDistance / 5)
+		return h.CFrame * CFrame.new(math.cos(angle) * radius, i * 0.8 - 2, math.sin(angle) * radius) * CFrame.Angles(0, -angle + math.pi / 2, math.rad(15))
+	elseif mode == "ني* قدامك" then
+		return CFrame.new(h.Position + lookDir * moveDistance + Vector3.new(0, -2 + math.sin(cycleTime) * 1.5 + ((i - 1) * 3), 0)) * CFrame.Angles(0, math.rad(h.Orientation.Y + 180), 0)
+	elseif mode == "ذيل" then
+		return CFrame.new(h.Position - lookDir * (moveDistance + (i - 1) * 3) + Vector3.new(0, -2 + math.sin(cycleTime), 0)) * CFrame.Angles(0, math.rad(h.Orientation.Y + 180), 0)
+	elseif mode == "ز*" then
+		return CFrame.new(h.Position + lookDir * (moveDistance + (i - 1) * 3) + Vector3.new(0, -2 + math.sin(cycleTime), 0)) * CFrame.Angles(0, math.rad(h.Orientation.Y), 0)
+	elseif mode == "اكس خلف الاعب" then
+		local half = math.ceil(total / 2)
+		local scale = (moveDistance / 5) * 2.5
+		local anim = math.sin(cycleTime) * 0.6
+		local offsetZ = 3 + (moveDistance * 0.2)
+		if i <= half then
+			local step = (i - (half + 1) / 2) * scale
+			return h.CFrame * CFrame.new(step, step + anim, offsetZ)
+		else
+			local idx = i - half
+			local step = (idx - (half + 1) / 2) * scale
+			return h.CFrame * CFrame.new(step, -step + anim, offsetZ)
+		end
+	elseif mode == "دائره خلف الاعب" then
+		local angle = (i / total) * math.pi * 2 + cycleTime
+		return h.CFrame * CFrame.new(math.cos(angle) * moveDistance, math.sin(angle) * moveDistance, 3) * CFrame.Angles(0, 0, angle)
+	elseif mode == "مربع خلف الاعب" then
+		local sideCount = math.max(1, math.floor(total / 4))
+		local side = math.floor((i - 1) / sideCount) % 4
+		local idx = (i - 1) % sideCount
+		local size = moveDistance
+		local step = (idx / math.max(1, sideCount - 1) - 0.5) * size
+		local anim = math.sin(cycleTime + i) * 0.5
+		local px, py = 0, 0
+		if side == 0 then px = step; py = size / 2
+		elseif side == 1 then px = size / 2; py = -step
+		elseif side == 2 then px = -step; py = -size / 2
+		else px = -size / 2; py = step end
+		return h.CFrame * CFrame.new(px, py + anim, 3)
+	elseif mode == "عشوائي بلارض" then
+		if not landPositions[i] then
+			landPositions[i] = {x = math.random(-35, 35), z = math.random(-35, 35)}
+		end
+		local lp = landPositions[i]
+		local bob = math.sin(cycleTime + i * 1.7) * 0.5
+		return CFrame.new(h.Position + rightDir * (lp.x * (moveDistance / 10)) + lookDir * (lp.z * (moveDistance / 10)) + Vector3.new(0, -1 + bob, 0))
+	elseif mode == "يد واصبع" then
+		if i <= 4 then
+			return CFrame.new(h.Position + rightDir * moveDistance + Vector3.new(0, 13 + (i - 1) * 3 + math.sin(cycleTime) * 1.5, 0))
+		elseif i <= 9 then
+			return CFrame.new(h.Position + rightDir * (((i - 4) * 3) * (moveDistance / 5)) + Vector3.new(0, 10, 0))
+		elseif i <= 12 then
+			return CFrame.new(h.Position + rightDir * ((3 + (i - 9) * 3) * (moveDistance / 5)) + Vector3.new(0, 7, 0))
+		else
+			return CFrame.new(h.Position + rightDir * ((3 + (i - 12) * 3) * (moveDistance / 5)) + Vector3.new(0, 4, 0))
+		end
+	elseif mode == "ز* 67" then
+		if i == 1 then
+			return CFrame.new(h.Position + lookDir * moveDistance + Vector3.new(0, -3, 0))
+		elseif i <= 3 then
+			local s = (i == 2) and -1 or 1
+			return CFrame.new(h.Position + lookDir * moveDistance + rightDir * (s * 2) + Vector3.new(0, -5, 0))
+		else
+			return CFrame.new(h.Position + lookDir * (moveDistance + (i - 3) * 2) + Vector3.new(0, -3, 0))
+		end
+	end
+	return nil
+end
+
+RunService.Heartbeat:Connect(function(dt)
+	if not (moveShapeEnabled or noShapeEnabled) then return end
+	local target = propSelectedPlayer and Players:FindFirstChild(propSelectedPlayer) or LocalPlayer
+	if not target or not target.Character then return end
+	local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	local props = GetMyBots()
+	if #props == 0 then return end
+	moveTime = moveTime + dt * moveSpeed * 0.5
+	local cycleTime = moveTime * math.pi * 2
+	local shapeToUse = noShapeEnabled and "basic" or moveShape
+	local customRot = CFrame.Angles(math.rad(rotX), math.rad(rotY), math.rad(rotZ1 + rotZ2))
+	for i, p in ipairs(props) do
+		local cf = computeMoveShape(shapeToUse, i, #props, hrp, cycleTime)
+		if cf then
+			cf = (cf + Vector3.new(0, moveHeight, 0)) * customRot
+			local setCF = p:FindFirstChild("SetCurrentCFrame")
+			if setCF then pcall(function() setCF:InvokeServer(cf) end) end
+		end
+	end
+end)
+
+local PropsRobotsTab = Library:MakeTab({ Title = "تخريب props اقوى شي" })
+local targetNames = { "", "", "", "", "", "", "", "", "", "" }
+local hasVIP = false
+local fixedVictimCount = 15
+PropsRobotsTab:AddButton({ "ترا لو كتبت اسامي ناس كثيره بيقل الprops عليهم", Callback = noop })
+for i = 1, 10 do
+	local idx = i
+	PropsRobotsTab:AddTextBox({ "اكتب الاعب تبي تفعل عليه " .. idx, "", "اكتب الاعب تبي تفعل عليه", Callback = function(text) targetNames[idx] = text end })
+end
+PropsRobotsTab:AddDropdown({ Title = "نوع الprop", Options = propNames, Callback = function(v)
+	for _, p in ipairs(propList) do
+		if p.Name == v then selectedProp = p; break end
+	end
+end })
+PropsRobotsTab:AddToggle({ "VIP (20 بروب)", false, Callback = function(v) hasVIP = v end })
+local function findPlayerByText(txt)
+	if txt == "" or txt == "على نفسك" or txt == "على نفسي" or txt == "self" or txt == "نفسي" then
+		return LocalPlayer
+	end
+	local lowerText = string.lower(txt)
+	for _, p in ipairs(Players:GetPlayers()) do
+		if string.lower(p.Name) == lowerText or string.lower(p.DisplayName) == lowerText then return p end
+	end
+	for _, p in ipairs(Players:GetPlayers()) do
+		if string.find(string.lower(p.Name), lowerText, 1, true) or string.find(string.lower(p.DisplayName), lowerText, 1, true) then return p end
+	end
+	return nil
+end
+local function resolveTargets()
+	local list = {}
+	local seen = {}
+	for i = 1, 10 do
+		local txt = targetNames[i]
+		if txt and txt ~= "" then
+			local plr = findPlayerByText(txt)
+			if plr and not seen[plr] then
+				seen[plr] = true
+				table.insert(list, plr)
+			end
+		end
+	end
+	if #list == 0 then table.insert(list, LocalPlayer) end
+	return list
+end
+local singleBackEnabled, singleBackConn = false, nil
+PropsRobotsTab:AddToggle({ "بانق prop 1", false, Callback = function(state)
+	singleBackEnabled = state
+	if singleBackConn then singleBackConn:Disconnect(); singleBackConn = nil end
+	if not state then return end
+	task.spawn(function()
+		local targets = resolveTargets()
+		local spawnedBots = {}
+		for _, target in ipairs(targets) do
+			if not singleBackEnabled then return end
+			local before = #GetMyBots()
+			spawnOneProp(selectedProp)
+			task.wait(0.5)
+			local bots = GetMyBots()
+			if #bots > before then
+				local bot = bots[#bots]
+				local setCF = bot:FindFirstChild("SetCurrentCFrame")
+				if setCF then table.insert(spawnedBots, { bot = bot, setCF = setCF, target = target }) end
+			end
+		end
+		local timer = 0
+		singleBackConn = RunService.Heartbeat:Connect(function(dt)
+			if not singleBackEnabled then return end
+			timer = timer + dt * 10
+			for _, item in ipairs(spawnedBots) do
+				if item.bot and item.bot.Parent and item.target then
+					local char = item.target.Character
+					if char then
+						local hrp = char:FindFirstChild("HumanoidRootPart")
+						if hrp then
+							local cf = computeCFrame("back", 1, 1, hrp, timer)
+							if cf then pcall(function() item.setCF:InvokeServer(cf) end) end
+						end
+					end
+				end
+			end
+		end)
+	end)
+end })
+local singleFaceEnabled, singleFaceConn = false, nil
+PropsRobotsTab:AddToggle({ "بانق وجه prop 1", false, Callback = function(state)
+	singleFaceEnabled = state
+	if singleFaceConn then singleFaceConn:Disconnect(); singleFaceConn = nil end
+	if not state then return end
+	task.spawn(function()
+		local targets = resolveTargets()
+		local spawnedBots = {}
+		for _, target in ipairs(targets) do
+			if not singleFaceEnabled then return end
+			local before = #GetMyBots()
+			spawnOneProp(selectedProp)
+			task.wait(0.5)
+			local bots = GetMyBots()
+			if #bots > before then
+				local bot = bots[#bots]
+				local setCF = bot:FindFirstChild("SetCurrentCFrame")
+				if setCF then table.insert(spawnedBots, { bot = bot, setCF = setCF, target = target }) end
+			end
+		end
+		local timer = 0
+		singleFaceConn = RunService.Heartbeat:Connect(function(dt)
+			if not singleFaceEnabled then return end
+			timer = timer + dt * 10
+			for _, item in ipairs(spawnedBots) do
+				if item.bot and item.bot.Parent and item.target then
+					local char = item.target.Character
+					if char then
+						local hrp = char:FindFirstChild("HumanoidRootPart")
+						if hrp then
+							local cf = computeCFrame("face", 1, 1, hrp, timer)
+							if cf then pcall(function() item.setCF:InvokeServer(cf) end) end
+						end
+					end
+				end
+			end
+		end)
+	end)
+end })
+local singleCombinedEnabled, singleCombinedConn = false, nil
+PropsRobotsTab:AddToggle({ "دمج بانق وجه وضهر prop 1", false, Callback = function(state)
+	singleCombinedEnabled = state
+	if singleCombinedConn then singleCombinedConn:Disconnect(); singleCombinedConn = nil end
+	if not state then return end
+	task.spawn(function()
+		local targets = resolveTargets()
+		local spawnedPairs = {}
+		for _, target in ipairs(targets) do
+			if not singleCombinedEnabled then return end
+			local before = #GetMyBots()
+			spawnOneProp(selectedProp)
+			task.wait(0.3)
+			if not singleCombinedEnabled then return end
+			spawnOneProp(selectedProp)
+			task.wait(0.5)
+			local bots = GetMyBots()
+			if #bots - before >= 2 then
+				local bot1 = bots[#bots - 1]
+				local bot2 = bots[#bots]
+				local setCF1 = bot1:FindFirstChild("SetCurrentCFrame")
+				local setCF2 = bot2:FindFirstChild("SetCurrentCFrame")
+				if setCF1 and setCF2 then
+					table.insert(spawnedPairs, { bot1 = bot1, setCF1 = setCF1, bot2 = bot2, setCF2 = setCF2, target = target })
+				end
+			end
+		end
+		local timer = 0
+		singleCombinedConn = RunService.Heartbeat:Connect(function(dt)
+			if not singleCombinedEnabled then return end
+			timer = timer + dt * 10
+			for _, item in ipairs(spawnedPairs) do
+				if item.bot1 and item.bot1.Parent and item.bot2 and item.bot2.Parent and item.target then
+					local char = item.target.Character
+					if char then
+						local hrp = char:FindFirstChild("HumanoidRootPart")
+						if hrp then
+							local cf1 = computeCFrame("back", 1, 1, hrp, timer)
+							local cf2 = computeCFrame("face", 1, 1, hrp, timer)
+							if cf1 then pcall(function() item.setCF1:InvokeServer(cf1) end) end
+							if cf2 then pcall(function() item.setCF2:InvokeServer(cf2) end) end
+						end
+					end
+				end
+			end
+		end)
+	end)
+end })
+local activeMode, activeConn, activeSpawnTask = nil, nil, nil
+local suppressCb = false
+local allToggles = {}
+local function stopActiveBang()
+	activeMode = nil
+	if activeConn then pcall(function() activeConn:Disconnect() end); activeConn = nil end
+	if activeSpawnTask then pcall(function() task.cancel(activeSpawnTask) end); activeSpawnTask = nil end
+end
+local function resetOtherToggles(keep)
+	suppressCb = true
+	for mode, t in pairs(allToggles) do
+		if t ~= keep and t and t.SetToggle then pcall(function() t.SetToggle(false) end) end
+	end
+	suppressCb = false
+end
+local function startBangOnTargets(mode, targets, toggleObj)
+	stopActiveBang()
+	resetOtherToggles(toggleObj)
+	activeMode = mode
+	activeSpawnTask = task.spawn(function()
+		local perTarget = math.max(2, math.floor(fixedVictimCount / #targets))
+		if hasVIP then perTarget = math.max(perTarget, 3) end
+		if mode == "combined" then perTarget = perTarget * 2 end
+		local needed = perTarget * #targets
+		local existing = GetMyBots()
+		local toSpawn = needed - #existing
+		if toSpawn > 0 then
+			for _ = 1, toSpawn do
+				if activeMode ~= mode then return end
+				spawnOneProp(selectedProp)
+			end
+		end
+		local timer = 0
+		activeConn = RunService.Heartbeat:Connect(function(dt)
+			if activeMode ~= mode then
+				if activeConn then activeConn:Disconnect(); activeConn = nil end
+				return
+			end
+			local validTargets = {}
+			for _, p in ipairs(targets) do
+				if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+					table.insert(validTargets, p)
+				end
+			end
+			if #validTargets == 0 then return end
+			timer = timer + dt * 10
+			local bots = GetMyBots()
+			if #bots == 0 then return end
+			for i, bot in ipairs(bots) do
+				local setCF = bot:FindFirstChild("SetCurrentCFrame")
+				if setCF then
+					local targetIdx = ((i - 1) % #validTargets) + 1
+					local tPlayer = validTargets[targetIdx]
+					local hrp = tPlayer.Character.HumanoidRootPart
+					local subIdx = math.floor((i - 1) / #validTargets) + 1
+					local subTotal = math.ceil(#bots / #validTargets)
+					local newCF = computeCFrame(mode, subIdx, subTotal, hrp, timer)
+					if newCF then pcall(function() setCF:InvokeServer(newCF) end) end
+				end
+			end
+		end)
+	end)
+end
+local allPlayersRunning, allPlayersConn, allPlayersSpawnTask = false, nil, nil
+local function stopAllPlayersBang()
+	allPlayersRunning = false
+	if allPlayersConn then pcall(function() allPlayersConn:Disconnect() end); allPlayersConn = nil end
+	if allPlayersSpawnTask then pcall(function() task.cancel(allPlayersSpawnTask) end); allPlayersSpawnTask = nil end
+end
+PropsRobotsTab:AddToggle({ "روبوتات على جميع الاعبين", false, Callback = function(state)
+	if state then
+		stopAllPlayersBang()
+		allPlayersRunning = true
+		allPlayersSpawnTask = task.spawn(function()
+			local allTargets = {}
+			for _, p in ipairs(Players:GetPlayers()) do
+				if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+					table.insert(allTargets, p)
+				end
+			end
+			if #allTargets == 0 then return end
+			local perTarget = math.max(2, math.floor(fixedVictimCount / #allTargets))
+			if hasVIP then perTarget = math.max(perTarget, 3) end
+			local existing = GetMyBots()
+			local needed = perTarget * #allTargets
+			local toSpawn = needed - #existing
+			if toSpawn > 0 then
+				for _ = 1, toSpawn do
+					if not allPlayersRunning then return end
+					spawnOneProp(selectedProp)
+				end
+			end
+			local timer = 0
+			allPlayersConn = RunService.Heartbeat:Connect(function(dt)
+				if not allPlayersRunning then
+					if allPlayersConn then allPlayersConn:Disconnect(); allPlayersConn = nil end
+					return
+				end
+				local validTargets = {}
+				for _, p in ipairs(Players:GetPlayers()) do
+					if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+						table.insert(validTargets, p)
+					end
+				end
+				if #validTargets == 0 then return end
+				timer = timer + dt * 10
+				local bots = GetMyBots()
+				if #bots == 0 then return end
+				for i, bot in ipairs(bots) do
+					local setCF = bot:FindFirstChild("SetCurrentCFrame")
+					if setCF then
+						local targetIdx = ((i - 1) % #validTargets) + 1
+						local tPlayer = validTargets[targetIdx]
+						local hrp = tPlayer.Character.HumanoidRootPart
+						local subIdx = math.floor((i - 1) / #validTargets) + 1
+						local subTotal = math.ceil(#bots / #validTargets)
+						local newCF = computeCFrame("back", subIdx, subTotal, hrp, timer)
+						if newCF then pcall(function() setCF:InvokeServer(newCF) end) end
+					end
+				end
+			end)
+		end)
+	else
+		stopAllPlayersBang()
+	end
+end })
+local function makeMethodToggle(label, mode)
+	local t
+	t = PropsRobotsTab:AddToggle({ label, false, Callback = function(state)
+		if suppressCb then return end
+		if state then
+			local targets = resolveTargets()
+			if #targets == 0 then
+				if t and t.SetToggle then pcall(function() t.SetToggle(false) end) end
+				return
+			end
+			startBangOnTargets(mode, targets, t)
+		else
+			if activeMode == mode then stopActiveBang() end
+		end
+	end })
+	allToggles[mode] = t
+end
+makeMethodToggle("بانق ضهر prop", "back")
+makeMethodToggle("بانق وجه prop", "face")
+makeMethodToggle("دمج بين وجه وضهر prop", "combined")
+makeMethodToggle("بانق دايره", "circle")
+makeMethodToggle("بانق حولين", "circleOut")
+makeMethodToggle("صف قدامك", "lineFront")
+makeMethodToggle("يدور", "spin")
+makeMethodToggle("حرب", "war")
+makeMethodToggle("فلينق", "fling")
+local antiAfkEnabled, antiAfkConn = false, nil
+PropsRobotsTab:AddToggle({ "مضاد afk", false, Callback = function(state)
+	antiAfkEnabled = state
+	if state then
+		if not antiAfkConn then
+			antiAfkConn = LocalPlayer.Idled:Connect(function()
+				if antiAfkEnabled then
+					pcall(function()
+						VirtualUser:CaptureController()
+						VirtualUser:ClickButton2(Vector2.new())
+					end)
+				end
+			end)
+		end
+	end
+end })
+
+local TabCopy = Library:MakeTab({ Title = "نسخ سكنات" })
+local copyTarget = nil
+local isRunning = false
+local function GetPlayerMatch(name)
+	if not name or name == "" then return nil end
+	local target = nil
+	for _, player in pairs(Players:GetPlayers()) do
+		if string.sub(string.lower(player.Name), 1, string.len(name)) == string.lower(name) or
+			string.sub(string.lower(player.DisplayName), 1, string.len(name)) == string.lower(name) then
+			target = player
+			break
+		end
+	end
+	return target
+end
+local function SecureAction(actionFunc, verifyFunc)
+	for _ = 1, 7 do
+		actionFunc()
+		task.wait(0.25)
+		if verifyFunc() then return true end
+	end
+	return false
+end
+local function IsAccessoryEquipped(assetId)
+	local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then return false end
+	local d = hum:GetAppliedDescription()
+	for _, a in ipairs(d:GetAccessories(true)) do
+		if tonumber(a.AssetId) == tonumber(assetId) then return true end
+	end
+	return false
+end
+local function ClearAccessoriesByType(accType)
+	local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	local d = hum:GetAppliedDescription()
+	for _, a in ipairs(d:GetAccessories(true)) do
+		if a.AccessoryType == accType then
+			SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId)) end, function() return not IsAccessoryEquipped(a.AssetId) end)
+		end
+	end
+end
+local function ClearAllClothingAndAccs()
+	local hum = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	local d = hum:GetAppliedDescription()
+	for _, a in ipairs(d:GetAccessories(true)) do
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId)) end, function() return not IsAccessoryEquipped(a.AssetId) end)
+	end
+	SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(0) end, function()
+		local currentD = Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+		return currentD.Shirt == 0 and currentD.Pants == 0 and #currentD:GetAccessories(true) == 0
+	end)
+end
+local function CopySpecificAccessory(target, accType)
+	if not target or not target.Character then return end
+	ClearAccessoriesByType(accType)
+	local pD = target.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+	for _, a in ipairs(pD:GetAccessories(true)) do
+		if a.AccessoryType == accType then
+			SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId)) end, function() return IsAccessoryEquipped(a.AssetId) end)
+		end
+	end
+end
+TabCopy:AddTextBox({ "اسم اللاعب", "", "ضع الاسم او اختصاره", Callback = function(v) copyTarget = GetPlayerMatch(v) end })
+TabCopy:AddButton({ "نسخ السكن كامل", Callback = function()
+	if isRunning or not copyTarget or not copyTarget.Character then return end
+	isRunning = true
+	ClearAllClothingAndAccs()
+	local pD = copyTarget.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+	pcall(function() ReplicatedStorage.Remotes.ChangeCharacterBody:InvokeServer({pD.Torso, pD.RightArm, pD.LeftArm, pD.RightLeg, pD.LeftLeg, pD.Head}) end)
+	task.wait(0.3)
+	pcall(function()
+		local skin = copyTarget.Character:FindFirstChild("Body Colors")
+		if skin then ReplicatedStorage.Remotes.ChangeBodyColor:FireServer(tostring(skin.HeadColor)) end
+	end)
+	task.wait(0.3)
+	if pD.Shirt ~= 0 then
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(pD.Shirt)) end, function() return Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription().Shirt == pD.Shirt end)
+	end
+	if pD.Pants ~= 0 then
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(pD.Pants)) end, function() return Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription().Pants == pD.Pants end)
+	end
+	for _, a in ipairs(pD:GetAccessories(true)) do
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId)) end, function() return IsAccessoryEquipped(a.AssetId) end)
+	end
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ الشرت فقط", Callback = function()
+	if isRunning or not copyTarget or not copyTarget.Character then return end
+	isRunning = true
+	local pD = copyTarget.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+	local currentD = Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+	if currentD.Shirt ~= 0 then
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(currentD.Shirt)) end, function() return Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription().Shirt == 0 end)
+	end
+	if pD.Shirt ~= 0 then
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(pD.Shirt)) end, function() return Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription().Shirt == pD.Shirt end)
+	end
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ البنطال فقط", Callback = function()
+	if isRunning or not copyTarget or not copyTarget.Character then return end
+	isRunning = true
+	local pD = copyTarget.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+	local currentD = Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+	if currentD.Pants ~= 0 then
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(currentD.Pants)) end, function() return Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription().Pants == 0 end)
+	end
+	if pD.Pants ~= 0 then
+		SecureAction(function() ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(pD.Pants)) end, function() return Player.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription().Pants == pD.Pants end)
+	end
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ الراس فقط", Callback = function()
+	if isRunning or not copyTarget or not copyTarget.Character then return end
+	isRunning = true
+	pcall(function()
+		local pD = copyTarget.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+		ReplicatedStorage.Remotes.ChangeCharacterBody:InvokeServer({nil, nil, nil, nil, nil, pD.Head})
+	end)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ الجسم فقط", Callback = function()
+	if isRunning or not copyTarget or not copyTarget.Character then return end
+	isRunning = true
+	pcall(function()
+		local pD = copyTarget.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+		ReplicatedStorage.Remotes.ChangeCharacterBody:InvokeServer({pD.Torso, pD.RightArm, pD.LeftArm, pD.RightLeg, pD.LeftLeg, pD.Head})
+	end)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ اكسسوارات الواجه", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	CopySpecificAccessory(copyTarget, Enum.AccessoryType.Face)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ اكسسوارات الظهر", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	CopySpecificAccessory(copyTarget, Enum.AccessoryType.Back)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ اكسسوارات القبعات", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	CopySpecificAccessory(copyTarget, Enum.AccessoryType.Hat)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ اكسسوارات الكتف", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	CopySpecificAccessory(copyTarget, Enum.AccessoryType.Shoulder)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ اكسسوارات الجزء السفلي", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	CopySpecificAccessory(copyTarget, Enum.AccessoryType.Waist)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ سكنات الجزء الامامي", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	CopySpecificAccessory(copyTarget, Enum.AccessoryType.Front)
+	isRunning = false
+end })
+TabCopy:AddButton({ "نسخ لون الجسم فقط", Callback = function()
+	if isRunning or not copyTarget or not copyTarget.Character then return end
+	isRunning = true
+	pcall(function()
+		local skin = copyTarget.Character:FindFirstChild("Body Colors")
+		if skin then ReplicatedStorage.Remotes.ChangeBodyColor:FireServer(tostring(skin.HeadColor)) end
+	end)
+	isRunning = false
+end })
+TabCopy:AddButton({ "حذف جميع الملابس", Callback = function()
+	if isRunning then return end
+	isRunning = true
+	ClearAllClothingAndAccs()
+	isRunning = false
+end })
